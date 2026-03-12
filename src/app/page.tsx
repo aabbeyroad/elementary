@@ -777,7 +777,6 @@ export default function Home() {
     <main className={styles.shell}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>Elementary Care Planner</span>
           <h1>오늘 누가 데려가야 하는지, 공백이 언제 생기는지 바로 보이게.</h1>
           <p>
             맞벌이 부모가 아이의 학교, 학원, 돌봄, 준비물을 한 화면에서
