@@ -19,9 +19,9 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const fetchData = useCallback(async () => {
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -52,7 +52,7 @@ export default function SettingsPage() {
         if (members) setFamilyMembers(members)
       }
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     fetchData()
@@ -61,6 +61,7 @@ export default function SettingsPage() {
   const handleSaveName = async () => {
     if (!profile || !displayName.trim()) return
     setSaving(true)
+    const supabase = createClient()
     await supabase
       .from('profiles')
       .update({ display_name: displayName.trim() })
@@ -78,6 +79,7 @@ export default function SettingsPage() {
   }
 
   const handleLogout = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }

@@ -19,9 +19,9 @@ export default function SuppliesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const supabase = createClient()
 
   const fetchData = useCallback(async () => {
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
@@ -43,11 +43,12 @@ export default function SuppliesPage() {
     if (suppliesRes.data) setSupplies(suppliesRes.data)
     if (childrenRes.data) setChildren(childrenRes.data)
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   const toggleCheck = async (supply: Supply) => {
+    const supabase = createClient()
     const now = new Date().toISOString()
     await supabase
       .from('supplies')
@@ -61,6 +62,7 @@ export default function SuppliesPage() {
   }
 
   const deleteSupply = async (id: string) => {
+    const supabase = createClient()
     await supabase.from('supplies').delete().eq('id', id)
     fetchData()
   }

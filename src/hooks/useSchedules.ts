@@ -12,9 +12,9 @@ export function useSchedules(familyId: string) {
   const [children, setChildren] = useState<Child[]>([])
   const [parents, setParents] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const fetchAll = useCallback(async () => {
+    const supabase = createClient()
     setLoading(true)
     const [schedulesRes, overridesRes, childrenRes, parentsRes] = await Promise.all([
       supabase.from('schedules').select('*').eq('family_id', familyId),
@@ -28,7 +28,7 @@ export function useSchedules(familyId: string) {
     if (childrenRes.data) setChildren(childrenRes.data)
     if (parentsRes.data) setParents(parentsRes.data)
     setLoading(false)
-  }, [familyId, supabase])
+  }, [familyId])
 
   useEffect(() => {
     fetchAll()
@@ -38,6 +38,7 @@ export function useSchedules(familyId: string) {
   useRealtimeSync(familyId, fetchAll)
 
   const deleteSchedule = async (scheduleId: string) => {
+    const supabase = createClient()
     await supabase.from('schedules').delete().eq('id', scheduleId)
     fetchAll()
   }

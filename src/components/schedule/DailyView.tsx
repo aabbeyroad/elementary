@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { CATEGORY_COLORS, timeToMinutes } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
@@ -107,7 +107,7 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
           <ScheduleBlock
             key={schedule.id}
             schedule={schedule}
-            onClick={() => onScheduleClick(schedule)}
+            onScheduleClick={onScheduleClick}
           />
         ))}
       </div>
@@ -115,12 +115,12 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
   )
 }
 
-function ScheduleBlock({
+const ScheduleBlock = memo(function ScheduleBlock({
   schedule,
-  onClick,
+  onScheduleClick,
 }: {
   schedule: ResolvedSchedule
-  onClick: () => void
+  onScheduleClick: (schedule: ResolvedSchedule) => void
 }) {
   const startMinutes = timeToMinutes(schedule.start_time)
   const endMinutes = timeToMinutes(schedule.end_time)
@@ -132,7 +132,7 @@ function ScheduleBlock({
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => onScheduleClick(schedule)}
       className="absolute left-12 right-2 rounded-lg p-2 text-left transition-transform active:scale-[0.98] overflow-hidden"
       style={{
         top,
@@ -181,9 +181,9 @@ function ScheduleBlock({
       )}
     </button>
   )
-}
+})
 
-function CareGapBlock({ gap, childName }: { gap: CareGap; childName: string }) {
+const CareGapBlock = memo(function CareGapBlock({ gap, childName }: { gap: CareGap; childName: string }) {
   const startMinutes = timeToMinutes(gap.start_time)
   const endMinutes = timeToMinutes(gap.end_time)
   const top = ((startMinutes - TIMELINE_START) / 60) * HOUR_HEIGHT
@@ -206,4 +206,4 @@ function CareGapBlock({ gap, childName }: { gap: CareGap; childName: string }) {
       </div>
     </div>
   )
-}
+})

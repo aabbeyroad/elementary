@@ -19,9 +19,9 @@ export default function ChildrenPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingChild, setEditingChild] = useState<Child | null>(null)
   const [familyId, setFamilyId] = useState<string | null>(null)
-  const supabase = createClient()
 
   const fetchChildren = useCallback(async () => {
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -42,7 +42,7 @@ export default function ChildrenPage() {
 
     if (data) setChildren(data)
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     fetchChildren()
@@ -51,6 +51,7 @@ export default function ChildrenPage() {
   const handleDelete = async (childId: string) => {
     if (!confirm('정말 삭제하시겠습니까? 연결된 일정과 준비물도 함께 삭제됩니다.')) return
 
+    const supabase = createClient()
     await supabase.from('children').delete().eq('id', childId)
     fetchChildren()
   }

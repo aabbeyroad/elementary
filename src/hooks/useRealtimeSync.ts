@@ -8,12 +8,13 @@ import { createClient } from '@/lib/supabase/client'
  * 테이블(schedules, supplies, children 등)에 변경이 발생하면 refetch 콜백을 호출합니다.
  */
 export function useRealtimeSync(familyId: string, onDataChange: () => void) {
-  const supabase = createClient()
   const callbackRef = useRef(onDataChange)
   callbackRef.current = onDataChange
 
   useEffect(() => {
     if (!familyId) return
+
+    const supabase = createClient()
 
     // 여러 테이블의 변경을 하나의 채널에서 감지
     const channel = supabase
@@ -71,5 +72,5 @@ export function useRealtimeSync(familyId: string, onDataChange: () => void) {
       supabase.removeChannel(channel)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [familyId, supabase])
+  }, [familyId])
 }
