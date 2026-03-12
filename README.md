@@ -19,6 +19,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+For a full pre-deploy check, run:
+
+```bash
+npm run check
+```
+
 ## Supabase setup for shared households
 
 1. Create a Supabase project.
@@ -34,6 +40,7 @@ Once those variables exist, the app can:
 - create a household and return a 6-character share code
 - join an existing household with the code
 - sync child profiles and schedule items to shared storage
+- report deployment health at `/api/health`
 
 ## Beta launch checklist
 
@@ -43,6 +50,7 @@ Once those variables exist, the app can:
 4. Change a schedule item in one window, press `Sync household`, then confirm the second window can pull the same state by joining again.
 5. In the second window, use `Refresh household` to pull the latest synced state without rejoining.
 6. Deploy to Vercel and add the same environment variables there.
+7. Open `/api/health` on the deployed URL and confirm `ok: true`.
 
 For a cleaner operator checklist, use [DEPLOYMENT.md](/Users/sudongkim/Documents/문서%20-%20Sudong%E1%84%8B%E1%85%B4%20MacBook%C2%A0Pro/elementary/DEPLOYMENT.md).
 

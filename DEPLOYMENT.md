@@ -16,6 +16,7 @@
 3. Run `npm run dev`.
 4. Create a household, copy the code, and join it in a second browser.
 5. Edit a child or schedule item, press `Sync household`, then press `Refresh household` in the second browser.
+6. Open `/api/health` locally and confirm `ok: true`.
 
 ### 3. Vercel
 
@@ -25,6 +26,8 @@
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
 4. Deploy.
+5. Open `/api/health` on the deployed URL.
+6. Confirm `sharedStorageConfigured` is `true`.
 
 ### 4. First beta test
 
