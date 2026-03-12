@@ -1,0 +1,297 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Plus, Pencil, Trash2, X, Check, ArrowLeft } from 'lucide-react'
+import type { Child } from '@/types/database'
+import Link from 'next/link'
+
+const CHILD_COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6']
+
+export default function ChildrenPage() {
+  const [children, setChildren] = useState<Child[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingChild, setEditingChild] = useState<Child | null>(null)
+  const [familyId, setFamilyId] = useState<string | null>(null)
+  const supabase = createClient()
+
+  const fetchChildren = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('family_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile?.family_id) return
+    setFamilyId(profile.family_id)
+
+    const { data } = await supabase
+      .from('children')
+      .select('*')
+      .eq('family_id', profile.family_id)
+      .order('sort_order')
+
+    if (data) setChildren(data)
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
+    fetchChildren()
+  }, [fetchChildren])
+
+  const handleDelete = async (childId: string) => {
+    if (!confirm('정말 삭제하시겠습니까? 연결된 일정과 준비물도 함께 삭제됩니다.')) return
+
+    await supabase.from('children').delete().eq('id', childId)
+    fetchChildren()
+  }
+
+  const handleEdit = (child: Child) => {
+    setEditingChild(child)
+    setShowForm(true)
+  }
+
+  return (
+    <div className="flex flex-col">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link href="/settings">
+              <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
+            </Link>
+            <h1 className="text-lg font-bold">자녀 관리</h1>
+          </div>
+          <Button size="sm" onClick={() => { setEditingChild(null); setShowForm(true) }}>
+            <Plus className="h-4 w-4 mr-1" />
+            추가
+          </Button>
+        </div>
+      </header>
+
+      <div className="p-4 space-y-3">
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
+        ) : children.length === 0 ? (
+          <div className="text-center py-16 space-y-4">
+            <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <span className="text-3xl">👶</span>
+            </div>
+            <p className="text-muted-foreground">등록된 자녀가 없습니다.</p>
+            <Button onClick={() => { setEditingChild(null); setShowForm(true) }}>
+              <Plus className="h-4 w-4 mr-1" />
+              첫 자녀 등록하기
+            </Button>
+          </div>
+        ) : (
+          children.map((child) => (
+            <Card key={child.id}>
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                    style={{ backgroundColor: child.color }}
+                  >
+                    {child.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium">{child.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {child.school_name && <span>{child.school_name}</span>}
+                      {child.grade && <Badge variant="secondary" className="text-xs">{child.grade}학년</Badge>}
+                      {child.class_number && <span>{child.class_number}반</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      돌봄 시간: {child.care_window_start?.slice(0, 5)} ~ {child.care_window_end?.slice(0, 5)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(child)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(child.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* 자녀 추가/수정 폼 (바텀시트 스타일) */}
+      {showForm && (
+        <ChildForm
+          familyId={familyId!}
+          child={editingChild}
+          childCount={children.length}
+          onClose={() => { setShowForm(false); setEditingChild(null) }}
+          onSaved={() => { setShowForm(false); setEditingChild(null); fetchChildren() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ChildForm({
+  familyId,
+  child,
+  childCount,
+  onClose,
+  onSaved,
+}: {
+  familyId: string
+  child: Child | null
+  childCount: number
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(child?.name ?? '')
+  const [schoolName, setSchoolName] = useState(child?.school_name ?? '')
+  const [grade, setGrade] = useState(child?.grade?.toString() ?? '')
+  const [classNumber, setClassNumber] = useState(child?.class_number?.toString() ?? '')
+  const [careStart, setCareStart] = useState(child?.care_window_start?.slice(0, 5) ?? '13:00')
+  const [careEnd, setCareEnd] = useState(child?.care_window_end?.slice(0, 5) ?? '18:00')
+  const [color, setColor] = useState(child?.color ?? CHILD_COLORS[childCount % CHILD_COLORS.length])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const supabase = createClient()
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+    setLoading(true)
+    setError('')
+
+    const data = {
+      family_id: familyId,
+      name: name.trim(),
+      school_name: schoolName.trim() || null,
+      grade: grade ? parseInt(grade) : null,
+      class_number: classNumber ? parseInt(classNumber) : null,
+      care_window_start: careStart,
+      care_window_end: careEnd,
+      color,
+      sort_order: child?.sort_order ?? childCount,
+    }
+
+    try {
+      if (child) {
+        const { error: err } = await supabase
+          .from('children')
+          .update(data)
+          .eq('id', child.id)
+        if (err) throw err
+      } else {
+        const { error: err } = await supabase
+          .from('children')
+          .insert(data)
+        if (err) throw err
+      }
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center">
+      <div className="w-full max-w-lg bg-background rounded-t-2xl p-6 space-y-4 animate-in slide-in-from-bottom">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">{child ? '자녀 수정' : '자녀 추가'}</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>이름 *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="아이 이름" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>학교</Label>
+            <Input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder="예: ○○초등학교" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>학년</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+              >
+                <option value="">선택</option>
+                {[1, 2, 3, 4, 5, 6].map(g => (
+                  <option key={g} value={g}>{g}학년</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>반</Label>
+              <Input
+                type="number"
+                value={classNumber}
+                onChange={(e) => setClassNumber(e.target.value)}
+                placeholder="반"
+                min={1}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>돌봄 시작 시간</Label>
+              <Input type="time" value={careStart} onChange={(e) => setCareStart(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>돌봄 종료 시간</Label>
+              <Input type="time" value={careEnd} onChange={(e) => setCareEnd(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>색상</Label>
+            <div className="flex gap-2">
+              {CHILD_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className="w-8 h-8 rounded-full border-2 transition-transform"
+                  style={{
+                    backgroundColor: c,
+                    borderColor: color === c ? '#000' : 'transparent',
+                    transform: color === c ? 'scale(1.2)' : 'scale(1)',
+                  }}
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <Button onClick={handleSave} disabled={loading} className="w-full h-12">
+          <Check className="h-4 w-4 mr-1" />
+          {loading ? '저장 중...' : child ? '수정 완료' : '추가하기'}
+        </Button>
+      </div>
+    </div>
+  )
+}
