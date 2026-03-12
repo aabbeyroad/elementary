@@ -1,5 +1,7 @@
 import { ChildProfile, GapAlert, ScheduleItem } from "@/lib/types";
 
+const DAY_END_TIME = "18:00";
+
 export function toMinutes(value: string) {
   const [hours, minutes] = value.split(":").map(Number);
 
@@ -46,28 +48,41 @@ export function buildGapAlerts(
       alerts.push({
         childName: child.name,
         start: child.defaultDismissal,
-        end: "18:00",
-        durationMinutes: toMinutes("18:00") - toMinutes(child.defaultDismissal),
+        end: DAY_END_TIME,
+        durationMinutes: toMinutes(DAY_END_TIME) - toMinutes(child.defaultDismissal),
         reason: "No after-school plan exists yet.",
       });
 
       return alerts;
     }
 
-    // This checks the real handoff windows, because the stressful moment for
-    // parents is usually the transition between two valid schedule blocks.
+    const firstItem = dailyItems[0];
+    const dismissalGap = toMinutes(firstItem.start) - toMinutes(child.defaultDismissal);
+
+    if (dismissalGap > 0) {
+      alerts.push({
+        childName: child.name,
+        start: child.defaultDismissal,
+        end: firstItem.start,
+        durationMinutes: dismissalGap,
+        reason: `No coverage is planned between dismissal and ${firstItem.title}.`,
+      });
+    }
+
     for (let index = 0; index < dailyItems.length; index += 1) {
       const current = dailyItems[index];
       const next = dailyItems[index + 1];
 
       if (current.pickupOwner === "TBD") {
+        const handoffEnd = next?.start ?? DAY_END_TIME;
+
         alerts.push({
           childName: child.name,
           start: current.end,
-          end: next?.start ?? "18:00",
+          end: handoffEnd,
           durationMinutes: Math.max(
             0,
-            toMinutes(next?.start ?? "18:00") - toMinutes(current.end),
+            toMinutes(handoffEnd) - toMinutes(current.end),
           ),
           reason: `${current.title} pickup is still unassigned.`,
         });
@@ -79,7 +94,7 @@ export function buildGapAlerts(
 
       const gap = toMinutes(next.start) - toMinutes(current.end);
 
-      if (gap >= 20) {
+      if (gap >= 20 && current.pickupOwner !== "TBD") {
         alerts.push({
           childName: child.name,
           start: current.end,
@@ -88,6 +103,19 @@ export function buildGapAlerts(
           reason: `Gap between ${current.title} and ${next.title}.`,
         });
       }
+    }
+
+    const lastItem = dailyItems[dailyItems.length - 1];
+    const endOfDayGap = toMinutes(DAY_END_TIME) - toMinutes(lastItem.end);
+
+    if (endOfDayGap > 0 && lastItem.pickupOwner !== "TBD") {
+      alerts.push({
+        childName: child.name,
+        start: lastItem.end,
+        end: DAY_END_TIME,
+        durationMinutes: endOfDayGap,
+        reason: "No coverage is planned after the final scheduled item.",
+      });
     }
 
     return alerts;

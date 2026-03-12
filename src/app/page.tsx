@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { DAY_LABELS, PARENT_OPTIONS, STORAGE_KEY, sampleChildren, sampleSchedule } from "@/lib/demo-data";
-import { buildGapAlerts, formatDuration, getTodayIndex, itemSort } from "@/lib/schedule";
+import { buildGapAlerts, formatDuration, getTodayIndex, itemSort, toMinutes } from "@/lib/schedule";
 import { ChildProfile, HouseholdBundle, HouseholdSummary, ParentRole, ScheduleItem, ScheduleType } from "@/lib/types";
-import { normalizeAccessCode } from "@/lib/validation";
+import { hasValidTimeRange, normalizeAccessCode } from "@/lib/validation";
 import styles from "./page.module.css";
 
 type NewItemForm = Omit<ScheduleItem, "id">;
@@ -15,6 +15,22 @@ type StoredState = {
   children: ChildProfile[];
   schedule: ScheduleItem[];
 };
+
+type ConfirmState = {
+  eyebrow?: string;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  cancelLabel: string;
+};
+
+const TAB_OPTIONS = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "This week" },
+  { id: "kids", label: "Child setup" },
+] as const;
+
+type ActiveTab = (typeof TAB_OPTIONS)[number]["id"];
 
 const defaultScheduleForm: NewItemForm = {
   childId: sampleChildren[0].id,
@@ -36,6 +52,14 @@ const defaultChildForm: NewChildForm = {
   defaultDismissal: "13:10",
 };
 
+function resolveScheduleChildId(children: ChildProfile[], preferredChildId?: string) {
+  if (preferredChildId && children.some((child) => child.id === preferredChildId)) {
+    return preferredChildId;
+  }
+
+  return children[0]?.id ?? "";
+}
+
 function readStoredState() {
   if (typeof window === "undefined") {
     return null;
@@ -47,17 +71,18 @@ function readStoredState() {
     return null;
   }
 
-  return JSON.parse(stored) as StoredState;
-}
+  try {
+    const parsed = JSON.parse(stored) as Partial<StoredState>;
 
-function hydrateStoredState() {
-  const stored = readStoredState();
-
-  return {
-    household: stored?.household ?? null,
-    children: stored?.children ?? sampleChildren,
-    schedule: stored?.schedule ?? sampleSchedule,
-  };
+    return {
+      household: parsed.household ?? null,
+      children: Array.isArray(parsed.children) ? parsed.children : sampleChildren,
+      schedule: Array.isArray(parsed.schedule) ? parsed.schedule : sampleSchedule,
+    };
+  } catch {
+    window.localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
 }
 
 function formatSyncTime(value?: string) {
@@ -74,29 +99,56 @@ function formatSyncTime(value?: string) {
 }
 
 export default function Home() {
-  const stored = hydrateStoredState();
-
-  const [household, setHousehold] = useState<HouseholdSummary | null>(stored.household);
-  const [children, setChildren] = useState<ChildProfile[]>(stored.children);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(stored.schedule);
-  const [activeTab, setActiveTab] = useState<"today" | "week" | "kids">("today");
-  const [selectedDay, setSelectedDay] = useState(getTodayIndex());
+  const [household, setHousehold] = useState<HouseholdSummary | null>(null);
+  const [children, setChildren] = useState<ChildProfile[]>(sampleChildren);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>(sampleSchedule);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("today");
+  const [selectedDay, setSelectedDay] = useState(0);
   const [backendReady, setBackendReady] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Checking shared storage...");
   const [isWorking, setIsWorking] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState<NewItemForm>(() => ({
-    ...defaultScheduleForm,
-    childId: stored.children[0]?.id ?? defaultScheduleForm.childId,
-  }));
+  const [storageReady, setStorageReady] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState<NewItemForm>(defaultScheduleForm);
   const [childForm, setChildForm] = useState<NewChildForm>(defaultChildForm);
   const [createForm, setCreateForm] = useState({
     householdName: "",
     ownerName: "",
   });
   const [joinCode, setJoinCode] = useState("");
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+  const confirmDialogRef = useRef<HTMLElement | null>(null);
+  const confirmCancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    const stored = readStoredState();
+
+    if (stored) {
+      setHousehold(stored.household);
+      setChildren(stored.children);
+      setSchedule(stored.schedule);
+      setScheduleForm((current) => ({
+        ...current,
+        childId: resolveScheduleChildId(stored.children, current.childId),
+      }));
+    } else {
+      setScheduleForm((current) => ({
+        ...current,
+        childId: resolveScheduleChildId(sampleChildren, current.childId),
+      }));
+    }
+
+    setSelectedDay(getTodayIndex());
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) {
+      return;
+    }
+
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -105,7 +157,7 @@ export default function Home() {
         schedule,
       }),
     );
-  }, [children, household, schedule]);
+  }, [children, household, schedule, storageReady]);
 
   useEffect(() => {
     setHasPendingChanges(false);
@@ -125,6 +177,80 @@ export default function Home() {
 
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasPendingChanges]);
+
+  useEffect(() => {
+    setScheduleForm((current) => {
+      const nextChildId = resolveScheduleChildId(children, current.childId);
+
+      if (nextChildId === current.childId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        childId: nextChildId,
+      };
+    });
+  }, [children]);
+
+  useEffect(() => {
+    if (!confirmState) {
+      return;
+    }
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const dialogElement = confirmDialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    confirmCancelButtonRef.current?.focus();
+
+    function handleDialogKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeConfirmation(false);
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialogElement) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        dialogElement.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+
+      if (!focusableElements.length) {
+        event.preventDefault();
+        dialogElement.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleDialogKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleDialogKeyDown);
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
+  }, [confirmState]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -194,6 +320,39 @@ export default function Home() {
     [todaySchedule],
   );
 
+  const hasChildren = children.length > 0;
+
+  function handleTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentTab: ActiveTab) {
+    const currentIndex = TAB_OPTIONS.findIndex((tab) => tab.id === currentTab);
+
+    if (currentIndex === -1) {
+      return;
+    }
+
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % TAB_OPTIONS.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + TAB_OPTIONS.length) % TAB_OPTIONS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = TAB_OPTIONS.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+
+    const nextTab = TAB_OPTIONS[nextIndex];
+
+    setActiveTab(nextTab.id);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`tab-${nextTab.id}`)?.focus();
+    });
+  }
+
   function applyHouseholdBundle(bundle: HouseholdBundle) {
     setHousehold(bundle.household);
     setChildren(bundle.children);
@@ -201,8 +360,21 @@ export default function Home() {
     setHasPendingChanges(false);
     setScheduleForm((current) => ({
       ...current,
-      childId: bundle.children[0]?.id ?? current.childId,
+      childId: resolveScheduleChildId(bundle.children, current.childId),
     }));
+  }
+
+  function requestConfirmation(options: ConfirmState) {
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmState(options);
+    });
+  }
+
+  function closeConfirmation(confirmed: boolean) {
+    confirmResolverRef.current?.(confirmed);
+    confirmResolverRef.current = null;
+    setConfirmState(null);
   }
 
   async function createHousehold(event: FormEvent<HTMLFormElement>) {
@@ -211,6 +383,21 @@ export default function Home() {
     if (!backendReady) {
       setStatusMessage("Connect Supabase first to create a shared household.");
       return;
+    }
+
+    if (hasPendingChanges) {
+      const shouldCreate = await requestConfirmation({
+        title: "Create a new shared household?",
+        description:
+          "This will replace your unsynced local changes with a new shared household. Sync first if you want to keep your edits.",
+        confirmLabel: "Create household",
+        cancelLabel: "Keep local changes",
+      });
+
+      if (!shouldCreate) {
+        setStatusMessage("Create canceled so your unsynced local changes stay on this device.");
+        return;
+      }
     }
 
     setIsWorking(true);
@@ -254,6 +441,21 @@ export default function Home() {
     if (!backendReady) {
       setStatusMessage("Connect Supabase first to join a shared household.");
       return;
+    }
+
+    if (hasPendingChanges) {
+      const shouldJoin = await requestConfirmation({
+        title: "Join this shared household?",
+        description:
+          "This will replace your unsynced local changes with the shared household data. Sync first if you want to keep your edits.",
+        confirmLabel: "Join household",
+        cancelLabel: "Keep local changes",
+      });
+
+      if (!shouldJoin) {
+        setStatusMessage("Join canceled so your unsynced local changes stay on this device.");
+        return;
+      }
     }
 
     setIsWorking(true);
@@ -341,6 +543,21 @@ export default function Home() {
       return;
     }
 
+    if (hasPendingChanges) {
+      const shouldRefresh = await requestConfirmation({
+        title: "Refresh from shared household?",
+        description:
+          "This will replace your unsynced local changes with the latest shared household data. Sync first if you want to keep your edits.",
+        confirmLabel: "Refresh household",
+        cancelLabel: "Keep local changes",
+      });
+
+      if (!shouldRefresh) {
+        setStatusMessage("Refresh canceled so your unsynced local changes stay on this device.");
+        return;
+      }
+    }
+
     setIsWorking(true);
     setStatusMessage("Refreshing shared household...");
 
@@ -388,8 +605,36 @@ export default function Home() {
   function handleScheduleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!hasChildren) {
+      setStatusMessage("Add a child profile before creating schedule items.");
+      return;
+    }
+
+    if (!scheduleForm.childId || !children.some((child) => child.id === scheduleForm.childId)) {
+      setStatusMessage("Choose a valid child for this schedule item.");
+      return;
+    }
+
     if (!scheduleForm.title.trim() || !scheduleForm.location.trim()) {
       setStatusMessage("Schedule title and location are required.");
+      return;
+    }
+
+    if (!hasValidTimeRange(scheduleForm.start, scheduleForm.end)) {
+      setStatusMessage("Start time must be earlier than end time.");
+      return;
+    }
+
+    const overlapsExistingItem = schedule.some(
+      (item) =>
+        item.childId === scheduleForm.childId &&
+        item.dayOfWeek === scheduleForm.dayOfWeek &&
+        toMinutes(scheduleForm.start) < toMinutes(item.end) &&
+        toMinutes(scheduleForm.end) > toMinutes(item.start),
+    );
+
+    if (overlapsExistingItem) {
+      setStatusMessage("This schedule overlaps another item for the same child.");
       return;
     }
 
@@ -423,17 +668,42 @@ export default function Home() {
       id: crypto.randomUUID(),
     };
 
-    setChildren((current) => [...current, nextChild]);
+    const nextChildren = [...children, nextChild];
+
+    setChildren(nextChildren);
     setHasPendingChanges(true);
     setScheduleForm((current) => ({
       ...current,
-      childId: children.length ? current.childId : nextChild.id,
+      childId: resolveScheduleChildId(nextChildren, current.childId),
     }));
     setChildForm(defaultChildForm);
     setStatusMessage("Added child locally. Sync when you want to share the update.");
   }
 
-  function removeChild(id: string) {
+  async function removeChild(id: string) {
+    const child = children.find((entry) => entry.id === id);
+
+    if (!child) {
+      return;
+    }
+
+    const childScheduleCount = schedule.filter((item) => item.childId === id).length;
+    const shouldRemoveChild = await requestConfirmation({
+      eyebrow: "Local change",
+      title: `Remove ${child.name}?`,
+      description:
+        childScheduleCount > 0
+          ? `This will also remove ${childScheduleCount} linked schedule item${childScheduleCount === 1 ? "" : "s"} on this device until you sync again.`
+          : "This child profile will be removed on this device until you sync again.",
+      confirmLabel: "Remove child",
+      cancelLabel: "Keep child",
+    });
+
+    if (!shouldRemoveChild) {
+      setStatusMessage("Remove canceled so this child profile stays in the plan.");
+      return;
+    }
+
     const remainingChildren = children.filter((child) => child.id !== id);
 
     setChildren(remainingChildren);
@@ -450,20 +720,55 @@ export default function Home() {
     setStatusMessage("Removed child locally. Sync to apply it for both parents.");
   }
 
-  function removeItem(id: string) {
-    setSchedule((current) => current.filter((item) => item.id !== id));
+  async function removeItem(id: string) {
+    const item = schedule.find((entry) => entry.id === id);
+
+    if (!item) {
+      return;
+    }
+
+    const shouldRemoveItem = await requestConfirmation({
+      eyebrow: "Local change",
+      title: `Remove ${item.title}?`,
+      description:
+        "This schedule item will be removed on this device until you sync again.",
+      confirmLabel: "Remove item",
+      cancelLabel: "Keep item",
+    });
+
+    if (!shouldRemoveItem) {
+      setStatusMessage("Remove canceled so this schedule item stays in the plan.");
+      return;
+    }
+
+    setSchedule((current) => current.filter((entry) => entry.id !== id));
     setHasPendingChanges(true);
     setStatusMessage("Removed schedule item locally. Sync to apply it for both parents.");
   }
 
-  function resetToLocalDemo() {
+  async function resetToLocalDemo() {
+    if (hasPendingChanges) {
+      const shouldLeave = await requestConfirmation({
+        title: "Leave this household?",
+        description:
+          "This will discard your unsynced local changes and return this device to the demo plan.",
+        confirmLabel: "Leave household",
+        cancelLabel: "Stay here",
+      });
+
+      if (!shouldLeave) {
+        setStatusMessage("Leave canceled so your unsynced local changes stay on this device.");
+        return;
+      }
+    }
+
     setHousehold(null);
     setChildren(sampleChildren);
     setSchedule(sampleSchedule);
     setHasPendingChanges(false);
     setScheduleForm({
       ...defaultScheduleForm,
-      childId: sampleChildren[0].id,
+      childId: resolveScheduleChildId(sampleChildren, defaultScheduleForm.childId),
     });
     setStatusMessage("Returned to local demo mode.");
   }
@@ -482,7 +787,14 @@ export default function Home() {
           <div className={styles.statusStrip}>
             <div>
               <strong>{household?.name ?? "No shared household yet"}</strong>
-              <span>{statusMessage}</span>
+              <p
+                className={styles.statusMessage}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {statusMessage}
+              </p>
               <small className={styles.syncNote}>
                 Last synced {formatSyncTime(household?.updatedAt)}
               </small>
@@ -537,6 +849,7 @@ export default function Home() {
           <form className={styles.inlineForm} onSubmit={createHousehold}>
             <strong>Create a new household</strong>
             <input
+              aria-label="Household name"
               value={createForm.householdName}
               onChange={(event) =>
                 setCreateForm((current) => ({
@@ -547,6 +860,7 @@ export default function Home() {
               placeholder="Kim family"
             />
             <input
+              aria-label="Owner name"
               value={createForm.ownerName}
               onChange={(event) =>
                 setCreateForm((current) => ({
@@ -564,6 +878,7 @@ export default function Home() {
           <form className={styles.inlineForm} onSubmit={joinHousehold}>
             <strong>Join with a code</strong>
             <input
+              aria-label="Household access code"
               value={joinCode}
               onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
               onBlur={() => setJoinCode((current) => normalizeAccessCode(current))}
@@ -589,6 +904,11 @@ export default function Home() {
             Parent A syncs changes. Parent B presses `Refresh household` to pull the latest plan.
           </span>
         ) : null}
+        {household && hasPendingChanges ? (
+          <span className={styles.setupHint}>
+            You have unsynced local changes. Create, join, refresh, or leave will ask before replacing them.
+          </span>
+        ) : null}
         {!backendReady ? (
           <span className={styles.setupHint}>
             Add `.env.local` with Supabase keys to turn on share codes and sync.
@@ -596,17 +916,19 @@ export default function Home() {
         ) : null}
       </div>
 
-      <nav className={styles.tabs} aria-label="Views">
-        {[
-          { id: "today", label: "Today" },
-          { id: "week", label: "This week" },
-          { id: "kids", label: "Child setup" },
-        ].map((tab) => (
+      <nav className={styles.tabs} aria-label="Views" role="tablist">
+        {TAB_OPTIONS.map((tab) => (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             type="button"
+            role="tab"
+            aria-selected={tab.id === activeTab}
+            aria-controls={`panel-${tab.id}`}
+            tabIndex={tab.id === activeTab ? 0 : -1}
             className={tab.id === activeTab ? styles.activeTab : styles.tab}
-            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, tab.id)}
           >
             {tab.label}
           </button>
@@ -614,7 +936,12 @@ export default function Home() {
       </nav>
 
       {activeTab === "today" ? (
-        <section className={styles.panel}>
+        <section
+          className={styles.panel}
+          role="tabpanel"
+          id="panel-today"
+          aria-labelledby="tab-today"
+        >
           <div className={styles.sectionHeader}>
             <div>
               <h2>Today view</h2>
@@ -756,7 +1083,12 @@ export default function Home() {
       ) : null}
 
       {activeTab === "week" ? (
-        <section className={styles.panel}>
+        <section
+          className={styles.panel}
+          role="tabpanel"
+          id="panel-week"
+          aria-labelledby="tab-week"
+        >
           <div className={styles.sectionHeader}>
             <div>
               <h2>This week</h2>
@@ -799,7 +1131,12 @@ export default function Home() {
       ) : null}
 
       {activeTab === "kids" ? (
-        <section className={styles.panel}>
+        <section
+          className={styles.panel}
+          role="tabpanel"
+          id="panel-kids"
+          aria-labelledby="tab-kids"
+        >
           <div className={styles.sectionHeader}>
             <div>
               <h2>Child setup</h2>
@@ -900,6 +1237,7 @@ export default function Home() {
                 <span>Child</span>
                 <select
                   value={scheduleForm.childId}
+                  disabled={!hasChildren}
                   onChange={(event) =>
                     setScheduleForm((current) => ({
                       ...current,
@@ -907,13 +1245,23 @@ export default function Home() {
                     }))
                   }
                 >
-                  {children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
+                  {hasChildren ? (
+                    children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {child.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Add a child first</option>
+                  )}
                 </select>
               </label>
+
+              {!hasChildren ? (
+                <p className={styles.inlineNotice}>
+                  Add at least one child profile before creating schedule items.
+                </p>
+              ) : null}
 
               <div className={styles.fieldRow}>
                 <label className={styles.field}>
@@ -1060,7 +1408,7 @@ export default function Home() {
                 />
               </label>
 
-              <button className={styles.primaryButton} type="submit">
+              <button className={styles.primaryButton} type="submit" disabled={!hasChildren}>
                 Save schedule item
               </button>
 
@@ -1090,6 +1438,48 @@ export default function Home() {
             </form>
           </div>
         </section>
+      ) : null}
+
+      {confirmState ? (
+        <div
+          className={styles.modalScrim}
+          role="presentation"
+          onClick={() => closeConfirmation(false)}
+        >
+          <section
+            className={styles.confirmModal}
+            ref={confirmDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            aria-describedby="confirm-description"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className={styles.cardLabel}>{confirmState.eyebrow ?? "Unsynced changes"}</p>
+            <h2 id="confirm-title">{confirmState.title}</h2>
+            <p id="confirm-description" className={styles.modalDescription}>
+              {confirmState.description}
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                ref={confirmCancelButtonRef}
+                type="button"
+                className={styles.modalSecondaryButton}
+                onClick={() => closeConfirmation(false)}
+              >
+                {confirmState.cancelLabel}
+              </button>
+              <button
+                type="button"
+                className={styles.modalPrimaryButton}
+                onClick={() => closeConfirmation(true)}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </main>
   );

@@ -82,6 +82,11 @@
   line-height: 1.5;
 }
 
+.statusMessage {
+  color: var(--ink-600);
+  line-height: 1.5;
+}
+
 .syncNote {
   display: block;
   margin-top: 8px;
@@ -244,7 +249,9 @@
 .dayButton,
 .activeDay,
 .primaryButton,
-.savedItem button {
+.savedItem button,
+.modalPrimaryButton,
+.modalSecondaryButton {
   border: 0;
   cursor: pointer;
   font: inherit;
@@ -509,12 +516,27 @@
   resize: vertical;
 }
 
+.inlineNotice {
+  color: #8a5b00;
+  line-height: 1.6;
+  font-weight: 700;
+}
+
 .primaryButton {
   padding: 14px 18px;
   border-radius: 16px;
   background: var(--ink-900);
   color: white;
   font-weight: 700;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.inlineForm button:disabled,
+.modalPrimaryButton:disabled,
+.modalSecondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .secondaryButton {
@@ -525,6 +547,84 @@
   cursor: pointer;
   border: 1px solid rgba(15, 23, 42, 0.12);
   font-weight: 700;
+}
+
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(22, 32, 51, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.confirmModal {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 250, 241, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
+}
+
+.confirmModal h2 {
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+}
+
+.modalDescription {
+  color: var(--ink-600);
+  line-height: 1.7;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modalPrimaryButton,
+.modalSecondaryButton {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.modalPrimaryButton {
+  background: var(--ink-900);
+  color: white;
+}
+
+.modalSecondaryButton {
+  background: #edf2f7;
+  color: var(--ink-700);
+}
+
+.tab:focus-visible,
+.activeTab:focus-visible,
+.dayButton:focus-visible,
+.activeDay:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.codePill:focus-visible,
+.savedItem button:focus-visible,
+.inlineForm button:focus-visible,
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.inlineForm input:focus-visible,
+.modalPrimaryButton:focus-visible,
+.modalSecondaryButton:focus-visible {
+  outline: 3px solid rgba(17, 94, 89, 0.35);
+  outline-offset: 3px;
 }
 
 .savedItem button {
@@ -596,7 +696,8 @@
   .timelineHeader,
   .savedItem,
   .weekHeader,
-  .statusActions {
+  .statusActions,
+  .modalActions {
     flex-direction: column;
   }
 
