@@ -142,7 +142,7 @@ export function ScheduleForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center">
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center">
       <div className="w-full max-w-lg bg-background rounded-t-2xl max-h-[85dvh] overflow-y-auto">
         <div className="sticky top-0 bg-background border-b px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <h2 className="text-lg font-bold">{schedule ? '일정 수정' : '일정 추가'}</h2>
@@ -314,10 +314,12 @@ export function ScheduleForm({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button onClick={handleSave} disabled={loading} className="w-full h-12">
-            <Check className="h-4 w-4 mr-1" />
-            {loading ? '저장 중...' : schedule ? '수정 완료' : '일정 추가'}
-          </Button>
+          <div className="pb-4">
+            <Button onClick={handleSave} disabled={loading} className="w-full h-12">
+              <Check className="h-4 w-4 mr-1" />
+              {loading ? '저장 중...' : schedule ? '수정 완료' : '일정 추가'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
