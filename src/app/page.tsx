@@ -2,7 +2,7 @@
 
 import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { DAY_LABELS, PARENT_OPTIONS, STORAGE_KEY, sampleChildren, sampleSchedule } from "@/lib/demo-data";
-import { buildGapAlerts, formatDuration, getTodayIndex, itemSort, toMinutes } from "@/lib/schedule";
+import { buildGapAlerts, buildScheduleWithCareCoverage, formatDuration, getTodayIndex, itemSort, toMinutes } from "@/lib/schedule";
 import { ChildProfile, HouseholdBundle, HouseholdSummary, ParentRole, ScheduleItem, ScheduleType } from "@/lib/types";
 import { hasValidTimeRange, normalizeAccessCode } from "@/lib/validation";
 import styles from "./page.module.css";
@@ -285,9 +285,7 @@ export default function Home() {
     () =>
       children.map((child) => ({
         child,
-        items: schedule
-          .filter((item) => item.childId === child.id && item.dayOfWeek === selectedDay)
-          .sort(itemSort),
+        items: buildScheduleWithCareCoverage(child, schedule, selectedDay),
       })),
     [children, schedule, selectedDay],
   );
@@ -296,9 +294,9 @@ export default function Home() {
     () =>
       DAY_LABELS.map((label, dayOfWeek) => ({
         label,
-        items: schedule.filter((item) => item.dayOfWeek === dayOfWeek).sort(itemSort),
+        items: children.flatMap((child) => buildScheduleWithCareCoverage(child, schedule, dayOfWeek)),
       })),
-    [schedule],
+    [children, schedule],
   );
 
   const gapAlerts = useMemo(
@@ -309,13 +307,15 @@ export default function Home() {
   const pickupSummary = useMemo(
     () =>
       todaySchedule.flatMap(({ child, items }) =>
-        items.map((item) => ({
-          id: `${child.id}-${item.id}`,
-          childName: child.name,
-          title: item.title,
-          owner: item.pickupOwner,
-          when: item.end,
-        })),
+        items
+          .filter((item) => !item.isAutoCare)
+          .map((item) => ({
+            id: `${child.id}-${item.id}`,
+            childName: child.name,
+            title: item.title,
+            owner: item.pickupOwner,
+            when: item.end,
+          })),
       ),
     [todaySchedule],
   );
@@ -1001,7 +1001,10 @@ export default function Home() {
                   <div className={styles.timelineList}>
                     {items.length ? (
                       items.map((item) => (
-                        <article key={item.id} className={styles.timelineItem}>
+                        <article
+                          key={item.id}
+                          className={item.isAutoCare ? styles.timelineItemAutoCare : styles.timelineItem}
+                        >
                           <div>
                             <strong>{item.title}</strong>
                             <p>
@@ -1011,14 +1014,18 @@ export default function Home() {
                           <div className={styles.timelineMeta}>
                             <span
                               className={
-                                item.pickupOwner === "TBD"
-                                  ? styles.warningPill
-                                  : styles.ownerPill
+                                item.isAutoCare
+                                  ? styles.carePill
+                                  : item.pickupOwner === "TBD"
+                                    ? styles.warningPill
+                                    : styles.ownerPill
                               }
                             >
-                              {item.pickupOwner}
+                              {item.isAutoCare ? "돌봄" : item.pickupOwner}
                             </span>
-                            <small>{item.packingList || "No packing note"}</small>
+                            <small>
+                              {item.isAutoCare ? "일정이 없는 시간을 자동으로 채웠습니다." : item.packingList || "No packing note"}
+                            </small>
                           </div>
                         </article>
                       ))
@@ -1063,11 +1070,11 @@ export default function Home() {
                 <div className={styles.pickupListCompact}>
                   {pickupSummary.length ? (
                     pickupSummary.map((pickup) => (
-                      <article key={pickup.id} className={styles.compactPickup}>
-                        <strong>{pickup.childName}</strong>
-                        <span>{pickup.title}</span>
-                        <em>
-                          {pickup.when} · {pickup.owner}
+                        <article key={pickup.id} className={styles.compactPickup}>
+                          <strong>{pickup.childName}</strong>
+                          <span>{pickup.title}</span>
+                          <em>
+                            {pickup.when} · {pickup.owner}
                         </em>
                       </article>
                     ))
@@ -1108,13 +1115,16 @@ export default function Home() {
                       const child = children.find((entry) => entry.id === item.childId);
 
                       return (
-                        <article key={item.id} className={styles.weekItem}>
+                        <article
+                          key={item.id}
+                          className={item.isAutoCare ? styles.weekItemAutoCare : styles.weekItem}
+                        >
                           <strong>{item.title}</strong>
                           <p>
                             {item.start} - {item.end}
                           </p>
                           <span>
-                            {child?.name ?? "Unknown child"} · {item.pickupOwner}
+                            {child?.name ?? "Unknown child"} · {item.isAutoCare ? "돌봄" : item.pickupOwner}
                           </span>
                         </article>
                       );

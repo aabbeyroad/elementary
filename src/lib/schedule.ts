@@ -1,4 +1,4 @@
-import { ChildProfile, GapAlert, ScheduleItem } from "@/lib/types";
+import { ChildProfile, DisplayScheduleItem, GapAlert, ScheduleItem } from "@/lib/types";
 
 const DAY_END_TIME = "18:00";
 
@@ -32,6 +32,60 @@ export function getTodayIndex() {
   return rawDay === 0 ? 6 : rawDay - 1;
 }
 
+export function buildScheduleWithCareCoverage(
+  child: ChildProfile,
+  items: ScheduleItem[],
+  dayOfWeek: number,
+) {
+  const dailyItems = items
+    .filter((item) => item.childId === child.id && item.dayOfWeek === dayOfWeek)
+    .sort(itemSort);
+
+  const coverageItems: DisplayScheduleItem[] = [];
+  let cursorTime = child.defaultDismissal;
+
+  for (const item of dailyItems) {
+    if (toMinutes(item.start) > toMinutes(cursorTime)) {
+      coverageItems.push({
+        id: `auto-care-${child.id}-${dayOfWeek}-${cursorTime}-${item.start}`,
+        childId: child.id,
+        dayOfWeek,
+        title: "돌봄",
+        type: "care",
+        start: cursorTime,
+        end: item.start,
+        location: "자동 채움",
+        pickupOwner: "TBD",
+        notes: "명시된 일정 외 시간을 자동으로 돌봄으로 표시합니다.",
+        packingList: "",
+        isAutoCare: true,
+      });
+    }
+
+    coverageItems.push(item);
+    cursorTime = item.end;
+  }
+
+  if (!dailyItems.length || toMinutes(cursorTime) < toMinutes(DAY_END_TIME)) {
+    coverageItems.push({
+      id: `auto-care-${child.id}-${dayOfWeek}-${cursorTime}-${DAY_END_TIME}`,
+      childId: child.id,
+      dayOfWeek,
+      title: "돌봄",
+      type: "care",
+      start: cursorTime,
+      end: DAY_END_TIME,
+      location: "자동 채움",
+      pickupOwner: "TBD",
+      notes: "명시된 일정 외 시간을 자동으로 돌봄으로 표시합니다.",
+      packingList: "",
+      isAutoCare: true,
+    });
+  }
+
+  return coverageItems.sort(itemSort);
+}
+
 export function buildGapAlerts(
   children: ChildProfile[],
   items: ScheduleItem[],
@@ -43,31 +97,6 @@ export function buildGapAlerts(
       .sort(itemSort);
 
     const alerts: GapAlert[] = [];
-
-    if (!dailyItems.length) {
-      alerts.push({
-        childName: child.name,
-        start: child.defaultDismissal,
-        end: DAY_END_TIME,
-        durationMinutes: toMinutes(DAY_END_TIME) - toMinutes(child.defaultDismissal),
-        reason: "No after-school plan exists yet.",
-      });
-
-      return alerts;
-    }
-
-    const firstItem = dailyItems[0];
-    const dismissalGap = toMinutes(firstItem.start) - toMinutes(child.defaultDismissal);
-
-    if (dismissalGap > 0) {
-      alerts.push({
-        childName: child.name,
-        start: child.defaultDismissal,
-        end: firstItem.start,
-        durationMinutes: dismissalGap,
-        reason: `No coverage is planned between dismissal and ${firstItem.title}.`,
-      });
-    }
 
     for (let index = 0; index < dailyItems.length; index += 1) {
       const current = dailyItems[index];
@@ -91,31 +120,6 @@ export function buildGapAlerts(
       if (!next) {
         continue;
       }
-
-      const gap = toMinutes(next.start) - toMinutes(current.end);
-
-      if (gap >= 20 && current.pickupOwner !== "TBD") {
-        alerts.push({
-          childName: child.name,
-          start: current.end,
-          end: next.start,
-          durationMinutes: gap,
-          reason: `Gap between ${current.title} and ${next.title}.`,
-        });
-      }
-    }
-
-    const lastItem = dailyItems[dailyItems.length - 1];
-    const endOfDayGap = toMinutes(DAY_END_TIME) - toMinutes(lastItem.end);
-
-    if (endOfDayGap > 0 && lastItem.pickupOwner !== "TBD") {
-      alerts.push({
-        childName: child.name,
-        start: lastItem.end,
-        end: DAY_END_TIME,
-        durationMinutes: endOfDayGap,
-        reason: "No coverage is planned after the final scheduled item.",
-      });
     }
 
     return alerts;

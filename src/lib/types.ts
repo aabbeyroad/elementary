@@ -23,6 +23,10 @@ export type ScheduleItem = {
   packingList: string;
 };
 
+export type DisplayScheduleItem = ScheduleItem & {
+  isAutoCare?: boolean;
+};
+
 export type GapAlert = {
   childName: string;
   start: string;
