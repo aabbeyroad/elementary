@@ -75,15 +75,14 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
 
-      // 초대코드로 가족 찾기
+      // 초대코드로 가족 찾기 (RLS 우회를 위해 rpc 사용)
+      // invite_code는 MD5 hex(소문자)이므로 toLowerCase() 변환
+      const normalizedCode = inviteCode.trim().toLowerCase()
       const { data: family, error: familyError } = await supabase
-        .from('families')
-        .select()
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single()
+        .rpc('find_family_by_invite_code', { code: normalizedCode })
 
       if (familyError || !family) {
-        setError('유효하지 않은 초대코드입니다.')
+        setError('유효하지 않은 초대코드입니다. 코드를 다시 확인해주세요.')
         return
       }
 

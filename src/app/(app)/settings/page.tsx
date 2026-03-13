@@ -72,7 +72,7 @@ export default function SettingsPage() {
 
   const handleCopyCode = () => {
     if (family?.invite_code) {
-      navigator.clipboard.writeText(family.invite_code)
+      navigator.clipboard.writeText(family.invite_code.toUpperCase())
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -142,7 +142,7 @@ export default function SettingsPage() {
               <div>
                 <Label className="text-xs text-muted-foreground">배우자 초대코드</Label>
                 <div className="flex items-center gap-2 mt-1">
-                  <code className="flex-1 bg-muted px-3 py-2 rounded-md font-mono text-lg tracking-widest text-center">
+                  <code className="flex-1 bg-muted px-3 py-2 rounded-md font-mono text-lg tracking-widest text-center uppercase">
                     {family.invite_code}
                   </code>
                   <Button variant="outline" size="icon" onClick={handleCopyCode}>
