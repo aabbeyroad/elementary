@@ -1,0 +1,726 @@
+.shell {
+  min-height: 100vh;
+  padding: 40px 24px 80px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 224, 168, 0.7), transparent 28%),
+    radial-gradient(circle at top right, rgba(191, 219, 254, 0.7), transparent 34%),
+    linear-gradient(180deg, #fffaf1 0%, #f8fbff 52%, #eef4f8 100%);
+  color: var(--ink-900);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto 24px;
+}
+
+.heroCopy,
+.heroCard,
+.panel {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+}
+
+.heroCopy {
+  padding: 40px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(16px);
+}
+
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: 18px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink-700);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heroCopy h1 {
+  max-width: 10ch;
+  font-size: clamp(3rem, 6vw, 5.6rem);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+.heroCopy p {
+  max-width: 56ch;
+  margin-top: 20px;
+  color: var(--ink-700);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.statusStrip,
+.infoBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.statusStrip strong,
+.infoBanner strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.statusStrip span,
+.infoBanner span {
+  color: var(--ink-600);
+  line-height: 1.5;
+}
+
+.statusMessage {
+  color: var(--ink-600);
+  line-height: 1.5;
+}
+
+.syncNote {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-500);
+}
+
+.statusActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cleanPill,
+.dirtyPill {
+  display: inline-flex;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.cleanPill {
+  background: #e6f6ea;
+  color: #23663a;
+}
+
+.dirtyPill {
+  background: #fff0cc;
+  color: #8a5b00;
+}
+
+.codePill {
+  display: inline-flex;
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #fff5d6;
+  color: #815b00;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.heroCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #11203c 0%, #1f3a68 100%);
+  color: #f8fafc;
+}
+
+.cardLabel {
+  color: inherit;
+  opacity: 0.72;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pickupList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pickupListCompact {
+  display: grid;
+  gap: 12px;
+}
+
+.pickupChip {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pickupChip strong {
+  font-size: 1.05rem;
+}
+
+.pickupChip span,
+.pickupChip em {
+  font-style: normal;
+  opacity: 0.86;
+}
+
+.compactPickup {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.compactPickup em {
+  font-style: normal;
+  color: var(--ink-600);
+}
+
+.inlineForm {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.inlineForm input,
+.inlineForm button {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 0;
+  font: inherit;
+}
+
+.inlineForm input {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink-900);
+}
+
+.inlineForm button {
+  cursor: pointer;
+  background: #ffd36f;
+  color: #18233a;
+  font-weight: 700;
+}
+
+.setupHint {
+  color: #8a5b00;
+  font-weight: 700;
+}
+
+.tabs {
+  position: sticky;
+  top: 16px;
+  z-index: 5;
+  display: inline-flex;
+  gap: 10px;
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(16px);
+}
+
+.infoBanner {
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.tab,
+.activeTab,
+.dayButton,
+.activeDay,
+.primaryButton,
+.savedItem button,
+.modalPrimaryButton,
+.modalSecondaryButton {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tab,
+.activeTab {
+  padding: 12px 18px;
+  border-radius: 999px;
+  color: var(--ink-600);
+  background: transparent;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.activeTab {
+  background: var(--ink-900);
+  color: white;
+}
+
+.panel {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(18px);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.sectionHeader h2 {
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.sectionHeader p {
+  margin-top: 8px;
+  color: var(--ink-600);
+  line-height: 1.6;
+}
+
+.dayPicker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dayButton,
+.activeDay {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #edf2f7;
+  color: var(--ink-700);
+}
+
+.activeDay {
+  background: #ffd36f;
+  color: var(--ink-900);
+}
+
+.alertGrid,
+.contentGrid,
+.setupGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.alertGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.summaryCard,
+.timelineCard,
+.alertPanel,
+.weekCard,
+.formCard {
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.summaryCard {
+  display: grid;
+  gap: 10px;
+}
+
+.summaryCard strong {
+  font-size: 1.9rem;
+  letter-spacing: -0.05em;
+}
+
+.summaryCard span {
+  color: var(--ink-600);
+  line-height: 1.5;
+}
+
+.contentGrid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+}
+
+.timelineColumn,
+.alertColumn,
+.timelineList,
+.alertList,
+.weekList,
+.savedList {
+  display: grid;
+  gap: 16px;
+}
+
+.timelineHeader,
+.weekHeader,
+.savedItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.timelineHeader h3,
+.alertPanel h3,
+.formCard h3,
+.weekHeader h3 {
+  font-size: 1.2rem;
+}
+
+.timelineHeader p,
+.dismissal,
+.timelineItem p,
+.timelineItem small,
+.alertItem span,
+.weekItem span,
+.savedItem span,
+.savedItem p,
+.emptyState {
+  color: var(--ink-600);
+}
+
+.dismissal {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f3f7fb;
+  font-size: 0.92rem;
+}
+
+.timelineItem,
+.timelineItemAutoCare,
+.alertItem,
+.weekItem,
+.weekItemAutoCare,
+.savedItem {
+  padding: 16px;
+  border-radius: 20px;
+  background: #f7fafc;
+}
+
+.timelineItemAutoCare,
+.weekItemAutoCare {
+  background: #eef8f0;
+  border: 1px dashed rgba(35, 102, 58, 0.24);
+}
+
+.timelineItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.timelineMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+}
+
+.ownerPill,
+.carePill,
+.warningPill {
+  display: inline-flex;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.ownerPill {
+  background: #dff6dd;
+  color: #1f5c2d;
+}
+
+.carePill {
+  background: #dff6dd;
+  color: #1f5c2d;
+}
+
+.warningPill {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.alertPanel {
+  height: 100%;
+}
+
+.alertItem strong,
+.weekItem strong,
+.savedItem strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.weekHeader span {
+  color: var(--ink-500);
+  font-size: 0.92rem;
+}
+
+.setupGrid {
+  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+}
+
+.formCard {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink-700);
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  background: white;
+  color: var(--ink-900);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.inlineNotice {
+  color: #8a5b00;
+  line-height: 1.6;
+  font-weight: 700;
+}
+
+.primaryButton {
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--ink-900);
+  color: white;
+  font-weight: 700;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.inlineForm button:disabled,
+.modalPrimaryButton:disabled,
+.modalSecondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.secondaryButton {
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: white;
+  color: var(--ink-700);
+  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  font-weight: 700;
+}
+
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(22, 32, 51, 0.34);
+  backdrop-filter: blur(8px);
+}
+
+.confirmModal {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 250, 241, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
+}
+
+.confirmModal h2 {
+  font-size: 1.8rem;
+  letter-spacing: -0.04em;
+}
+
+.modalDescription {
+  color: var(--ink-600);
+  line-height: 1.7;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modalPrimaryButton,
+.modalSecondaryButton {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.modalPrimaryButton {
+  background: var(--ink-900);
+  color: white;
+}
+
+.modalSecondaryButton {
+  background: #edf2f7;
+  color: var(--ink-700);
+}
+
+.tab:focus-visible,
+.activeTab:focus-visible,
+.dayButton:focus-visible,
+.activeDay:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.codePill:focus-visible,
+.savedItem button:focus-visible,
+.inlineForm button:focus-visible,
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.inlineForm input:focus-visible,
+.modalPrimaryButton:focus-visible,
+.modalSecondaryButton:focus-visible {
+  outline: 3px solid rgba(17, 94, 89, 0.35);
+  outline-offset: 3px;
+}
+
+.savedItem button {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.emptyState {
+  line-height: 1.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover,
+  .dayButton:hover,
+  .primaryButton:hover,
+  .secondaryButton:hover,
+  .codePill:hover,
+  .savedItem button:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 1100px) {
+  .hero,
+  .contentGrid,
+  .setupGrid,
+  .alertGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .weekGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statusStrip,
+  .infoBanner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    padding: 20px 16px 56px;
+  }
+
+  .heroCopy,
+  .heroCard,
+  .panel {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .heroCopy h1 {
+    max-width: none;
+    font-size: 2.7rem;
+  }
+
+  .tabs {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .sectionHeader,
+  .timelineItem,
+  .timelineHeader,
+  .savedItem,
+  .weekHeader,
+  .statusActions,
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .dayPicker {
+    justify-content: flex-start;
+  }
+
+  .fieldRow,
+  .weekGrid {
+    grid-template-columns: 1fr;
+  }
+}
