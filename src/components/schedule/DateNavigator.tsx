@@ -21,7 +21,7 @@ export function DateNavigator({ label, onPrev, onNext, className }: DateNavigato
       >
         <ChevronLeft className="h-4.5 w-4.5" />
       </Button>
-      <div className="px-2 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
+      <div className="truncate whitespace-nowrap px-2 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
         {label}
       </div>
       <Button

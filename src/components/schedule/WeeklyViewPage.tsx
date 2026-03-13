@@ -9,13 +9,13 @@ import { useSchedules } from '@/hooks/useSchedules'
 import {
   buildDisplaySchedulesForDate,
   getScheduleBlockPalette,
+  timeToMinutes,
   resolveSchedulesForDate,
 } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
-import Link from 'next/link'
 import { DateNavigator } from '@/components/schedule/DateNavigator'
 
 const loadScheduleForm = () =>
@@ -26,6 +26,11 @@ const ScheduleForm = lazy(loadScheduleForm)
 interface WeeklyViewPageProps {
   familyId: string
 }
+
+const TIMELINE_START = 7 * 60
+const TIMELINE_END = 21 * 60
+const HOUR_HEIGHT = 56
+const MIN_BLOCK_HEIGHT = 18
 
 export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const [weekStart, setWeekStart] = useState(() =>
@@ -63,12 +68,13 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const goToThisWeek = useCallback(() => startTransition(() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))), [])
 
   const isThisWeek = isSameDay(weekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const hours = Array.from({ length: (TIMELINE_END - TIMELINE_START) / 60 + 1 }, (_, i) => i + 7)
+  const timelineHeight = ((TIMELINE_END - TIMELINE_START) / 60) * HOUR_HEIGHT
 
   return (
     <div className="page-shell">
       <PageHeader
-        kicker="Weekly Overview"
-        title={`${format(weekDays[0], 'M월 d일', { locale: ko })} - ${format(weekDays[6], 'M월 d일', { locale: ko })}`}
+        title="주간 일정"
         actions={
           <>
             {!isThisWeek && <Button variant="secondary" size="sm" onClick={goToThisWeek}>이번주</Button>}
@@ -94,55 +100,107 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
         {loading ? (
           <WeeklySkeleton />
         ) : (
-          <div className="grid grid-cols-7 gap-1">
-            {['월', '화', '수', '목', '금', '토', '일'].map((day, i) => (
-              <div key={day} className={`text-center text-xs font-medium py-1 ${i === 5 ? 'text-blue-500' : i === 6 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                {day}
-              </div>
-            ))}
-
-            {weekData.map(({ day, schedules: daySchedules, gaps }) => {
-              const isToday = isSameDay(day, new Date())
-              return (
-                <Link
-                  key={day.toISOString()}
-                  href="/dashboard"
-                  prefetch
-                  className={`rounded-lg border p-1.5 min-h-[120px] space-y-0.5 transition-colors hover:bg-accent/50 ${
-                    isToday ? 'border-primary bg-primary/5' : 'border-transparent'
-                  }`}
-                >
-                  <p className={`text-center text-sm font-medium ${isToday ? 'text-primary' : ''}`}>
-                    {format(day, 'd')}
-                  </p>
-
-                  {daySchedules.slice(0, 4).map(s => (
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1 pb-2">
+                <div />
+                {weekData.map(({ day }) => {
+                  const today = isSameDay(day, new Date())
+                  return (
                     <div
-                      key={s.id}
-                      className="truncate rounded-[8px] px-1.5 py-0.5 text-[9px] font-medium leading-tight"
-                      style={(() => {
-                        const palette = getScheduleBlockPalette(s)
-                        return {
-                          backgroundColor: palette.background,
-                          color: palette.text,
-                        }
-                      })()}
+                      key={`header-${day.toISOString()}`}
+                      className={`rounded-[16px] px-2 py-2 text-center ${
+                        today ? 'bg-primary/8 text-primary' : 'bg-secondary/65 text-foreground'
+                      }`}
                     >
-                      {s.title}
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        {format(day, 'EEE', { locale: ko })}
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold">
+                        {format(day, 'd')}
+                      </p>
                     </div>
-                  ))}
-                  {daySchedules.length > 4 && (
-                    <p className="text-[9px] text-muted-foreground text-center">+{daySchedules.length - 4}</p>
-                  )}
+                  )
+                })}
+              </div>
 
-                  {gaps.length > 0 && (
-                    <div className="text-[9px] text-orange-600 bg-orange-50 px-1 py-0.5 rounded text-center font-medium">
-                      미배정 {gaps.length}
+              <div className="relative grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1">
+                <div className="relative" style={{ height: `${timelineHeight}px` }}>
+                  {hours.slice(0, -1).map(hour => {
+                    const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
+                    return (
+                      <div key={`hour-${hour}`} className="absolute left-0 right-0" style={{ top }}>
+                        <span className="block -translate-y-2 text-right text-[11px] font-medium text-muted-foreground">
+                          {hour}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {weekData.map(({ day, schedules: daySchedules, gaps }) => {
+                  const today = isSameDay(day, new Date())
+
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`relative overflow-hidden rounded-[18px] ${
+                        today ? 'bg-primary/5' : 'bg-secondary/38'
+                      }`}
+                      style={{ height: `${timelineHeight}px` }}
+                    >
+                      {hours.slice(0, -1).map(hour => {
+                        const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
+                        return (
+                          <div key={`${day.toISOString()}-${hour}`} className="absolute inset-x-0" style={{ top }}>
+                            <div className="border-t border-dashed border-border/70" />
+                          </div>
+                        )
+                      })}
+
+                      {daySchedules.map(schedule => {
+                        const startMinutes = timeToMinutes(schedule.start_time)
+                        const endMinutes = timeToMinutes(schedule.end_time)
+                        const top = ((startMinutes - TIMELINE_START) / 60) * HOUR_HEIGHT
+                        const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, MIN_BLOCK_HEIGHT)
+                        const palette = getScheduleBlockPalette(schedule)
+                        const showText = height >= 28
+
+                        return (
+                          <div
+                            key={schedule.id}
+                            className="absolute left-1 right-1 overflow-hidden rounded-[12px] px-2 py-1"
+                            style={{
+                              top,
+                              height,
+                              backgroundColor: palette.background,
+                              color: palette.text,
+                            }}
+                          >
+                            {showText ? (
+                              <div className="space-y-0.5">
+                                <p className="truncate text-[10px] font-semibold">{schedule.title}</p>
+                                {height >= 40 ? (
+                                  <p className="truncate text-[9px]" style={{ color: palette.mutedText }}>
+                                    {schedule.start_time.slice(0, 5)}-{schedule.end_time.slice(0, 5)}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+
+                      {gaps.length > 0 ? (
+                        <div className="absolute inset-x-1 bottom-1 rounded-[10px] bg-orange-50/92 px-1.5 py-1 text-center text-[9px] font-medium text-orange-700">
+                          미배정 {gaps.length}
+                        </div>
+                      ) : null}
                     </div>
-                  )}
-                </Link>
-              )
-            })}
+                  )
+                })}
+              </div>
+            </div>
           </div>
         )}
         </CardContent>
@@ -173,19 +231,25 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
 
 function WeeklySkeleton() {
   return (
-    <div className="grid grid-cols-7 gap-2 animate-pulse">
-      {Array.from({ length: 7 }, (_, i) => (
-        <div key={i} className="text-center text-xs font-medium py-1 text-muted-foreground">
-          {['월', '화', '수', '목', '금', '토', '일'][i]}
+    <div className="animate-pulse overflow-x-auto">
+      <div className="min-w-[760px]">
+        <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1 pb-2">
+          <div />
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="surface-card-muted h-14" />
+          ))}
         </div>
-      ))}
-      {Array.from({ length: 7 }, (_, i) => (
-        <div key={`cell-${i}`} className="surface-card-muted min-h-[120px] p-2 space-y-1">
-          <div className="h-4 w-4 bg-muted rounded mx-auto" />
-          <div className="h-3 bg-muted rounded" />
-          <div className="h-3 bg-muted rounded" />
+        <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1">
+          <div className="space-y-10 pt-2">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="ml-auto h-3 w-4 rounded bg-muted" />
+            ))}
+          </div>
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={`cell-${i}`} className="surface-card-muted h-[784px]" />
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   )
 }

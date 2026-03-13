@@ -96,8 +96,7 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
   return (
     <div className="page-shell">
       <PageHeader
-        kicker="Monthly Overview"
-        title={format(currentMonth, 'yyyy년 M월', { locale: ko })}
+        title="월간 일정"
         actions={
           <>
             {!isThisMonth && <Button variant="secondary" size="sm" onClick={goToThisMonth}>이번달</Button>}
