@@ -5,12 +5,14 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { DailyView } from '@/components/schedule/DailyView'
 import { useSchedules } from '@/hooks/useSchedules'
 import { resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
 import type { ResolvedSchedule, Schedule } from '@/types/database'
 import Link from 'next/link'
+import { PageHeader } from '@/components/ui/page-header'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Card, CardContent } from '@/components/ui/card'
 
 // ScheduleForm은 버튼 터치 시에만 필요 → lazy load
 const ScheduleForm = lazy(() =>
@@ -63,59 +65,65 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
   }, [refetch])
 
   return (
-    <div className="flex flex-col">
-      {/* 헤더 */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div />
-          <div className="flex items-center gap-2">
+    <div className="page-shell">
+      <PageHeader
+        kicker="Family Planner"
+        title={format(selectedDate, 'M월 d일', { locale: ko })}
+        subtitle={format(selectedDate, 'EEEE · 아이들의 하루를 한 화면에서 정리하세요.', { locale: ko })}
+        actions={
+          <>
             {!isToday && (
-              <Button variant="ghost" size="sm" onClick={goToToday}>오늘</Button>
+              <Button variant="secondary" size="sm" onClick={goToToday}>오늘</Button>
             )}
             <Button size="sm" onClick={handleAddSchedule}>
-              <Plus className="h-4 w-4 mr-1" />
-              일정
+              <Plus className="h-4 w-4" />
+              일정 추가
+            </Button>
+          </>
+        }
+        leading={
+          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+            <Button variant="ghost" size="icon" onClick={goToPrevDay}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+              {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
+            </div>
+            <Button variant="ghost" size="icon" onClick={goToNextDay}>
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <Button variant="ghost" size="icon" onClick={goToPrevDay}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <p className="text-lg font-semibold">
-            {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
-          </p>
-          <Button variant="ghost" size="icon" onClick={goToNextDay}>
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-        {/* 뷰 전환 */}
-        <div className="flex items-center justify-center gap-1 mt-2">
-          <Badge variant="default">일간</Badge>
-          <Link href="/schedule"><Badge variant="outline" className="cursor-pointer">주간</Badge></Link>
-          <Link href="/schedule/monthly"><Badge variant="outline" className="cursor-pointer">월간</Badge></Link>
-        </div>
-      </header>
+        }
+      >
+        <SegmentedControl
+          items={[
+            { label: '일간', active: true },
+            { label: '주간', href: '/schedule' },
+            { label: '월간', href: '/schedule/monthly' },
+          ]}
+        />
+      </PageHeader>
 
-      {/* 콘텐츠 */}
-      <div className="py-4">
+      <div className="space-y-4">
         {loading ? (
           <ScheduleSkeleton />
         ) : children.length === 0 ? (
-          <div className="text-center py-16 space-y-4 px-4">
-            <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <span className="text-3xl">👶</span>
-            </div>
-            <p className="font-medium">자녀를 먼저 등록해주세요</p>
-            <p className="text-sm text-muted-foreground">
-              자녀를 등록하면 일정 관리와 돌봄 공백 감지를 시작할 수 있습니다.
-            </p>
-            <Button asChild>
-              <Link href="/children">
-                <Plus className="h-4 w-4 mr-1" /> 자녀 등록하기
-              </Link>
-            </Button>
-          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center px-6 py-16 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+                <span className="text-3xl">👶</span>
+              </div>
+              <p className="mt-6 text-xl font-semibold tracking-[-0.03em]">자녀를 먼저 등록해주세요</p>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                자녀를 등록하면 일정 관리와 돌봄 공백 감지를 바로 시작할 수 있습니다.
+              </p>
+              <Button asChild className="mt-6">
+                <Link href="/children">
+                  <Plus className="h-4 w-4" /> 자녀 등록하기
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <DailyView
             schedules={resolvedSchedules}
@@ -149,17 +157,17 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
 // 스켈레톤 로더: 로딩 중 레이아웃 유지로 CLS 방지
 function ScheduleSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse px-4">
-      {/* 돌봄 공백 요약 스켈레톤 */}
-      <div className="rounded-lg border border-muted bg-muted/30 p-3 h-16" />
-      {/* 타임라인 스켈레톤 */}
-      <div className="space-y-2 ml-10">
+    <div className="space-y-4 animate-pulse">
+      <div className="surface-card-muted h-24" />
+      <div className="surface-card p-5">
+        <div className="space-y-3 pl-10">
         {Array.from({ length: 5 }, (_, i) => (
           <div key={i} className="flex items-start gap-2">
             <div className="w-8 h-4 rounded bg-muted" />
             <div className="flex-1 h-12 rounded-lg bg-muted" />
           </div>
         ))}
+        </div>
       </div>
     </div>
   )

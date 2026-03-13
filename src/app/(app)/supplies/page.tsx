@@ -13,6 +13,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useModalDialog } from '@/hooks/useModalDialog'
 import { Plus, X, Check, Square, CheckSquare, Trash2 } from 'lucide-react'
 import type { Supply, Child } from '@/types/database'
+import { PageHeader } from '@/components/ui/page-header'
+import { Notice } from '@/components/ui/notice'
 
 export default function SuppliesPage() {
   const [supplies, setSupplies] = useState<Supply[]>([])
@@ -95,45 +97,48 @@ export default function SuppliesPage() {
   const uncheckedCount = supplies.filter(s => !s.is_checked).length
 
   return (
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold">준비물</h1>
-            {uncheckedCount > 0 && (
-              <Badge variant="destructive" className="text-xs">{uncheckedCount}</Badge>
-            )}
-          </div>
+    <div className="page-shell">
+      <PageHeader
+        kicker="Supplies"
+        title="준비물 관리"
+        subtitle="날짜별 체크리스트를 차분하게 정리해 등교 전 확인 부담을 줄입니다."
+        actions={
           <Button size="sm" onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1" /> 추가
+            <Plus className="h-4 w-4" /> 준비물 추가
           </Button>
-        </div>
-      </header>
+        }
+        leading={uncheckedCount > 0 ? <Badge variant="destructive">{uncheckedCount}개 미확인</Badge> : undefined}
+      />
 
-      <div className="p-4 space-y-4">
+      <div className="space-y-4">
         {actionError && (
-          <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+          <Notice variant="destructive" title="작업을 완료하지 못했습니다" role="alert">
             {actionError}
-          </p>
+          </Notice>
         )}
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">불러오는 중...</CardContent>
+          </Card>
         ) : supplies.length === 0 ? (
-          <div className="text-center py-16 space-y-4">
-            <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+          <Card>
+            <CardContent className="flex flex-col items-center py-16 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
               <span className="text-3xl">📋</span>
             </div>
-            <p className="text-muted-foreground">등록된 준비물이 없습니다.</p>
-            <Button onClick={() => setShowForm(true)}>
+            <p className="mt-6 text-lg font-semibold tracking-[-0.03em]">등록된 준비물이 없습니다.</p>
+            <p className="mt-2 text-sm text-muted-foreground">등교 전 체크할 항목을 날짜별로 정리해둘 수 있습니다.</p>
+            <Button className="mt-6" onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-1" /> 준비물 추가
             </Button>
-          </div>
+            </CardContent>
+          </Card>
         ) : (
           Object.entries(groupedSupplies)
             .sort(([a], [b]) => a === '미정' ? 1 : b === '미정' ? -1 : a.localeCompare(b))
             .map(([dateKey, items]) => (
               <div key={dateKey}>
-                <h2 className="text-sm font-semibold text-muted-foreground mb-2">
+                <h2 className="mb-2 text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {dateKey === '미정' ? '날짜 미정' :
                     dateKey === today ? '오늘' :
                     format(new Date(dateKey), 'M월 d일 (EEE)', { locale: ko })}

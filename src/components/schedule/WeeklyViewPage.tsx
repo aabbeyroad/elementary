@@ -5,10 +5,12 @@ import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useSchedules } from '@/hooks/useSchedules'
 import { buildDisplaySchedulesForDate, resolveSchedulesForDate, CATEGORY_COLORS } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
+import { PageHeader } from '@/components/ui/page-header'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 
 const ScheduleForm = lazy(() =>
@@ -50,36 +52,44 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const isThisWeek = isSameDay(weekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))
 
   return (
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div />
-          <div className="flex items-center gap-2">
-            {!isThisWeek && <Button variant="ghost" size="sm" onClick={goToThisWeek}>이번주</Button>}
+    <div className="page-shell">
+      <PageHeader
+        kicker="Weekly Overview"
+        title={`${format(weekDays[0], 'M월 d일', { locale: ko })} - ${format(weekDays[6], 'M월 d일', { locale: ko })}`}
+        subtitle="주 단위로 일정, 자동 돌봄, 미배정 블록을 빠르게 훑어볼 수 있습니다."
+        actions={
+          <>
+            {!isThisWeek && <Button variant="secondary" size="sm" onClick={goToThisWeek}>이번주</Button>}
             <Button size="sm" onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-1" /> 일정
+              <Plus className="h-4 w-4" /> 일정 추가
+            </Button>
+          </>
+        }
+        leading={
+          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+            <Button variant="ghost" size="icon" onClick={goToPrevWeek}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+              {format(weekDays[0], 'M.d', { locale: ko })} ~ {format(weekDays[6], 'M.d', { locale: ko })}
+            </div>
+            <Button variant="ghost" size="icon" onClick={goToNextWeek}>
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <Button variant="ghost" size="icon" onClick={goToPrevWeek}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <p className="text-base font-semibold">
-            {format(weekDays[0], 'M.d', { locale: ko })} ~ {format(weekDays[6], 'M.d', { locale: ko })}
-          </p>
-          <Button variant="ghost" size="icon" onClick={goToNextWeek}>
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="flex items-center justify-center gap-1 mt-2">
-          <Link href="/dashboard"><Badge variant="outline" className="cursor-pointer">일간</Badge></Link>
-          <Badge variant="default">주간</Badge>
-          <Link href="/schedule/monthly"><Badge variant="outline" className="cursor-pointer">월간</Badge></Link>
-        </div>
-      </header>
+        }
+      >
+        <SegmentedControl
+          items={[
+            { label: '일간', href: '/dashboard' },
+            { label: '주간', active: true },
+            { label: '월간', href: '/schedule/monthly' },
+          ]}
+        />
+      </PageHeader>
 
-      <div className="p-2">
+      <Card>
+        <CardContent className="p-3 sm:p-5">
         {loading ? (
           <WeeklySkeleton />
         ) : (
@@ -131,7 +141,8 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
             })}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {showForm && children.length > 0 && (
         <Suspense fallback={<FormLoadingOverlay />}>
@@ -151,14 +162,14 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
 
 function WeeklySkeleton() {
   return (
-    <div className="grid grid-cols-7 gap-1 animate-pulse">
+    <div className="grid grid-cols-7 gap-2 animate-pulse">
       {Array.from({ length: 7 }, (_, i) => (
         <div key={i} className="text-center text-xs font-medium py-1 text-muted-foreground">
           {['월', '화', '수', '목', '금', '토', '일'][i]}
         </div>
       ))}
       {Array.from({ length: 7 }, (_, i) => (
-        <div key={`cell-${i}`} className="rounded-lg border border-transparent p-1.5 min-h-[120px] space-y-1">
+        <div key={`cell-${i}`} className="surface-card-muted min-h-[120px] p-2 space-y-1">
           <div className="h-4 w-4 bg-muted rounded mx-auto" />
           <div className="h-3 bg-muted rounded" />
           <div className="h-3 bg-muted rounded" />

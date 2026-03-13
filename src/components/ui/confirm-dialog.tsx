@@ -34,14 +34,14 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
-        className="w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl"
+        className="surface-card w-full max-w-sm p-6"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="space-y-2">
-          <h2 id="confirm-dialog-title" className="text-lg font-semibold">
+          <h2 id="confirm-dialog-title" className="text-xl font-semibold tracking-[-0.03em]">
             {title}
           </h2>
-          <p id="confirm-dialog-description" className="text-sm text-muted-foreground">
+          <p id="confirm-dialog-description" className="text-sm leading-6 text-muted-foreground">
             {description}
           </p>
         </div>

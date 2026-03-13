@@ -3,6 +3,7 @@
 import { createClient, hasSupabaseBrowserEnv } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Notice } from '@/components/ui/notice'
 
 export default function LoginPage() {
   const authConfigured = hasSupabaseBrowserEnv()
@@ -32,24 +33,48 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-primary/5 to-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-            <span className="text-3xl">🏠</span>
-          </div>
-          <div>
-            <CardTitle className="text-2xl">돌봄돌봄</CardTitle>
-            <CardDescription className="mt-2">
-              맞벌이 부모를 위한 자녀 돌봄 일정 관리
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+    <div className="page-shell min-h-dvh items-center justify-center">
+      <div className="w-full max-w-[880px]">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="hero-header flex flex-col justify-between">
+            <div>
+              <p className="hero-kicker">Care Coordination</p>
+              <h1 className="hero-title">차분하고 선명한 가족 돌봄 캘린더</h1>
+              <p className="hero-subtitle">
+                돌봄돌봄은 자녀 일정, 픽업 책임, 준비물 관리를 하나의 흐름으로 묶어 부부가 같은 화면을 보며 결정할 수 있게 설계된 가족 운영 도구입니다.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                ['일정', '하루, 주간, 월간 흐름을 같은 언어로 정리'],
+                ['돌봄', '비어 있는 시간은 자동 돌봄으로 채워 표시'],
+                ['공유', '가족 구성원이 같은 데이터로 동기화'],
+              ].map(([title, description]) => (
+                <div key={title} className="surface-card-muted p-4">
+                  <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">{title}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <Card className="w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-accent">
+                <span className="text-3xl">🏠</span>
+              </div>
+              <div>
+                <CardTitle className="text-[2rem]">돌봄돌봄</CardTitle>
+                <CardDescription className="mt-2">
+                  맞벌이 부모를 위한 자녀 돌봄 일정 관리
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
           <Button
             onClick={handleGoogleLogin}
             variant="outline"
-            className="w-full h-12 text-base gap-3"
+            className="w-full gap-3"
             disabled={!authConfigured}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -62,7 +87,7 @@ export default function LoginPage() {
           </Button>
           <Button
             onClick={handleKakaoLogin}
-            className="w-full h-12 text-base gap-3"
+            className="w-full gap-3"
             style={{ backgroundColor: '#FEE500', color: '#191919' }}
             disabled={!authConfigured}
           >
@@ -75,12 +100,14 @@ export default function LoginPage() {
             로그인하면 이용약관에 동의하는 것으로 간주합니다.
           </p>
           {!authConfigured && (
-            <p className="text-xs text-center text-amber-600">
+            <Notice variant="warning" title="로그인 설정 필요">
               Supabase 로그인 설정이 없어 현재 빌드에서는 로그인 버튼이 비활성화됩니다.
-            </p>
+            </Notice>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

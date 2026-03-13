@@ -16,10 +16,12 @@ import {
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useSchedules } from '@/hooks/useSchedules'
 import { buildDisplaySchedulesForDate, resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
+import { PageHeader } from '@/components/ui/page-header'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 
 const ScheduleForm = lazy(() =>
@@ -83,36 +85,44 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
   const isThisMonth = isSameMonth(currentMonth, new Date())
 
   return (
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div />
-          <div className="flex items-center gap-2">
-            {!isThisMonth && <Button variant="ghost" size="sm" onClick={goToThisMonth}>이번달</Button>}
+    <div className="page-shell">
+      <PageHeader
+        kicker="Monthly Overview"
+        title={format(currentMonth, 'yyyy년 M월', { locale: ko })}
+        subtitle="월 단위로 일정 밀도와 미배정 신호를 차분하게 확인할 수 있습니다."
+        actions={
+          <>
+            {!isThisMonth && <Button variant="secondary" size="sm" onClick={goToThisMonth}>이번달</Button>}
             <Button size="sm" onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-1" /> 일정
+              <Plus className="h-4 w-4" /> 일정 추가
+            </Button>
+          </>
+        }
+        leading={
+          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+            <Button variant="ghost" size="icon" onClick={goToPrevMonth}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+              {format(currentMonth, 'yyyy년 M월', { locale: ko })}
+            </div>
+            <Button variant="ghost" size="icon" onClick={goToNextMonth}>
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <Button variant="ghost" size="icon" onClick={goToPrevMonth}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <p className="text-lg font-semibold">
-            {format(currentMonth, 'yyyy년 M월', { locale: ko })}
-          </p>
-          <Button variant="ghost" size="icon" onClick={goToNextMonth}>
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="flex items-center justify-center gap-1 mt-2">
-          <Link href="/dashboard"><Badge variant="outline" className="cursor-pointer">일간</Badge></Link>
-          <Link href="/schedule"><Badge variant="outline" className="cursor-pointer">주간</Badge></Link>
-          <Badge variant="default">월간</Badge>
-        </div>
-      </header>
+        }
+      >
+        <SegmentedControl
+          items={[
+            { label: '일간', href: '/dashboard' },
+            { label: '주간', href: '/schedule' },
+            { label: '월간', active: true },
+          ]}
+        />
+      </PageHeader>
 
-      <div className="p-3">
+      <Card>
+        <CardContent className="p-3 sm:p-5">
         {loading ? (
           <MonthlySkeleton />
         ) : (
@@ -163,7 +173,8 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
             })}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {showForm && children.length > 0 && (
         <Suspense fallback={<FormLoadingOverlay />}>
@@ -183,12 +194,12 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
 
 function MonthlySkeleton() {
   return (
-    <div className="grid grid-cols-7 gap-0.5 animate-pulse">
+    <div className="grid grid-cols-7 gap-1 animate-pulse">
       {['월', '화', '수', '목', '금', '토', '일'].map((day) => (
         <div key={day} className="text-center text-xs font-medium py-2 text-muted-foreground">{day}</div>
       ))}
       {Array.from({ length: 35 }, (_, i) => (
-        <div key={i} className="rounded-md p-1 min-h-[52px] flex flex-col items-center">
+        <div key={i} className="surface-card-muted min-h-[56px] p-1 flex flex-col items-center">
           <div className="w-7 h-7 bg-muted rounded-full" />
         </div>
       ))}

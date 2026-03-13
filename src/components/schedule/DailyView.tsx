@@ -6,6 +6,8 @@ import { buildDisplaySchedulesForDate, CATEGORY_COLORS, timeToMinutes } from '@/
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import type { Child, DisplaySchedule, Profile, ResolvedSchedule } from '@/types/database'
 import { MapPin, Clock } from 'lucide-react'
+import { Notice } from '@/components/ui/notice'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface DailyViewProps {
   schedules: ResolvedSchedule[]
@@ -62,72 +64,67 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
 
   return (
     <div className="space-y-3">
-      {/* 미배정 일정 요약 */}
       {careGaps.length > 0 && (
-        <div className="mx-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-orange-800">
-              미배정 일정 {careGaps.length}건
-            </span>
-            <span className="text-xs text-orange-600">
-              총 {Math.floor(totalCareGapMinutes / 60)}시간 {totalCareGapMinutes % 60}분
-            </span>
+        <Notice variant="warning" title={`미배정 일정 ${careGaps.length}건`}>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span>담당자 확인이 필요한 블록만 표시됩니다.</span>
+            <span>총 {Math.floor(totalCareGapMinutes / 60)}시간 {totalCareGapMinutes % 60}분</span>
           </div>
-          <div className="mt-2 space-y-1">
+          <div className="mt-3 space-y-1.5">
             {careGaps.map((gap, i) => {
               const child = childList.find(c => c.id === gap.child_id)
               return (
-                <div key={i} className="flex items-center gap-2 text-xs text-orange-700">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: child?.color }} />
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: child?.color }} />
                   <span>{child?.name}</span>
                   <span>{gap.start_time.slice(0, 5)} ~ {gap.end_time.slice(0, 5)}</span>
-                  <span className="text-orange-500">(담당자 확인 필요)</span>
+                  <span className="opacity-75">(담당자 확인 필요)</span>
                 </div>
               )
             })}
           </div>
-        </div>
+        </Notice>
       )}
 
-      {/* 일정이 없는 경우 */}
       {displaySchedules.length === 0 && careGaps.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>이 날은 등록된 일정이 없습니다.</p>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            이 날은 등록된 일정이 없습니다.
+          </CardContent>
+        </Card>
       )}
 
-      {/* 부모 컬럼 헤더 */}
-      {(parentLeft || parentRight) && displaySchedules.length > 0 && (
-        <div className="mx-4 flex items-center" style={{ paddingLeft: '40px' }}>
-          <div className="flex-[15] flex items-center justify-center gap-1 min-w-0">
-            {parentLeft && (
-              <>
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: parentLeft.color }} />
-                <span className="text-xs font-medium truncate" style={{ color: parentLeft.color }}>
-                  {parentLeft.display_name}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex-[70] text-center">
-            <span className="text-xs font-medium text-muted-foreground">아이 일정</span>
-          </div>
-          <div className="flex-[15] flex items-center justify-center gap-1 min-w-0">
-            {parentRight && (
-              <>
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: parentRight.color }} />
-                <span className="text-xs font-medium truncate" style={{ color: parentRight.color }}>
-                  {parentRight.display_name}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <Card>
+        <CardContent className="p-5">
+          {(parentLeft || parentRight) && displaySchedules.length > 0 && (
+            <div className="mb-4 flex items-center pl-10">
+              <div className="flex min-w-0 flex-[15] items-center justify-center gap-1">
+                {parentLeft && (
+                  <>
+                    <div className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: parentLeft.color }} />
+                    <span className="truncate text-xs font-medium" style={{ color: parentLeft.color }}>
+                      {parentLeft.display_name}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="flex-[70] text-center">
+                <span className="text-xs font-medium tracking-[0.04em] text-muted-foreground">아이 일정</span>
+              </div>
+              <div className="flex min-w-0 flex-[15] items-center justify-center gap-1">
+                {parentRight && (
+                  <>
+                    <div className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: parentRight.color }} />
+                    <span className="truncate text-xs font-medium" style={{ color: parentRight.color }}>
+                      {parentRight.display_name}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-      {/* 3컬럼 타임라인 */}
-      <div className="relative mx-4" style={{ height: `${timelineHeight}px` }}>
-        {/* 시간 그리드 라인 */}
+          <div className="relative" style={{ height: `${timelineHeight}px` }}>
         {hours.map(hour => {
           const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
           return (
@@ -142,44 +139,42 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
           )
         })}
 
-        {/* 3컬럼 영역 (시간 라벨 우측) */}
-        <div className="absolute left-10 right-0 top-0 bottom-0 flex">
-          {/* 좌: 부모1 컬럼 */}
-          <div className="relative flex-[15]">
-            {parentLeft && parentLeftBlocks.map(schedule => (
-              <ParentBlock
-                key={`pl-${schedule.id}`}
-                schedule={schedule}
-                parent={parentLeft}
-              />
-            ))}
-          </div>
+            <div className="absolute inset-y-0 left-10 right-0 flex">
+              <div className="relative flex-[15]">
+                {parentLeft && parentLeftBlocks.map(schedule => (
+                  <ParentBlock
+                    key={`pl-${schedule.id}`}
+                    schedule={schedule}
+                    parent={parentLeft}
+                  />
+                ))}
+              </div>
 
-          {/* 중앙: 아이 일정 (70%) */}
-          <div className="relative flex-[70] mx-0.5">
-            {displaySchedules.map(schedule => (
-              <ChildScheduleBlock
-                key={schedule.id}
-                schedule={schedule}
-                parentLeft={parentLeft}
-                parentRight={parentRight}
-                onScheduleClick={onScheduleClick}
-              />
-            ))}
-          </div>
+              <div className="relative mx-0.5 flex-[70]">
+                {displaySchedules.map(schedule => (
+                  <ChildScheduleBlock
+                    key={schedule.id}
+                    schedule={schedule}
+                    parentLeft={parentLeft}
+                    parentRight={parentRight}
+                    onScheduleClick={onScheduleClick}
+                  />
+                ))}
+              </div>
 
-          {/* 우: 부모2 컬럼 */}
-          <div className="relative flex-[15]">
-            {parentRight && parentRightBlocks.map(schedule => (
-              <ParentBlock
-                key={`pr-${schedule.id}`}
-                schedule={schedule}
-                parent={parentRight}
-              />
-            ))}
+              <div className="relative flex-[15]">
+                {parentRight && parentRightBlocks.map(schedule => (
+                  <ParentBlock
+                    key={`pr-${schedule.id}`}
+                    schedule={schedule}
+                    parent={parentRight}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -215,7 +210,7 @@ const ChildScheduleBlock = memo(function ChildScheduleBlock({
   return (
     <button
       onClick={() => { if (!schedule.isAutoCare) onScheduleClick(schedule) }}
-      className="absolute left-0 right-0 rounded-lg p-1.5 text-left transition-transform active:scale-[0.98] overflow-hidden"
+      className="absolute left-0 right-0 overflow-hidden rounded-[18px] p-2 text-left shadow-[var(--shadow-subtle)] transition-transform active:scale-[0.98]"
       disabled={schedule.isAutoCare}
       style={{
         top,

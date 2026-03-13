@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Copy, Users, Baby, LogOut, Check } from 'lucide-react'
 import type { Profile, Family } from '@/types/database'
+import { PageHeader } from '@/components/ui/page-header'
+import { Tooltip } from '@/components/ui/tooltip'
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -89,13 +91,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <h1 className="text-lg font-bold">설정</h1>
-      </header>
+    <div className="page-shell">
+      <PageHeader
+        kicker="Settings"
+        title="가족 설정"
+        subtitle="프로필, 초대 코드, 연결된 자녀 관리 진입점을 한 흐름으로 정리했습니다."
+      />
 
-      <div className="p-4 space-y-4">
-        {/* 프로필 */}
+      <div className="space-y-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">내 프로필</CardTitle>
@@ -113,7 +116,6 @@ export default function SettingsPage() {
                   <Input
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="h-9"
                   />
                   <Button
                     size="sm"
@@ -142,12 +144,14 @@ export default function SettingsPage() {
               <div>
                 <Label className="text-xs text-muted-foreground">배우자 초대코드</Label>
                 <div className="flex items-center gap-2 mt-1">
-                  <code className="flex-1 bg-muted px-3 py-2 rounded-md font-mono text-lg tracking-widest text-center uppercase">
+                  <code className="flex-1 rounded-[20px] bg-secondary px-4 py-3 text-center font-mono text-lg tracking-[0.24em] text-foreground uppercase">
                     {family.invite_code}
                   </code>
-                  <Button variant="outline" size="icon" onClick={handleCopyCode}>
-                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                  </Button>
+                  <Tooltip label={copied ? '복사됨' : '초대코드 복사'}>
+                    <Button variant="outline" size="icon" onClick={handleCopyCode}>
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </Tooltip>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   이 코드를 배우자에게 공유하면 같은 가족으로 합류할 수 있습니다.
@@ -178,12 +182,25 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        {/* 자녀 관리 */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push('/children')}>
-          <CardContent className="flex items-center justify-between p-4">
+        <Card
+          className="cursor-pointer transition-transform hover:-translate-y-0.5"
+          onClick={() => router.push('/children')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              router.push('/children')
+            }
+          }}
+        >
+          <CardContent className="flex items-center justify-between p-5">
             <div className="flex items-center gap-3">
               <Baby className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">자녀 관리</span>
+              <div>
+                <p className="font-medium tracking-[-0.02em]">자녀 관리</p>
+                <p className="text-sm text-muted-foreground">학교, 학년, 돌봄 시간창을 관리합니다.</p>
+              </div>
             </div>
             <span className="text-muted-foreground">›</span>
           </CardContent>

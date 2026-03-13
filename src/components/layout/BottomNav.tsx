@@ -31,8 +31,8 @@ export const BottomNav = memo(function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto max-w-lg flex items-center justify-around h-16">
+    <nav className="fixed inset-x-0 bottom-4 z-50 px-4">
+      <div className="mx-auto flex h-[72px] max-w-[440px] items-center justify-around rounded-[28px] border border-white/80 bg-white/78 px-3 shadow-[var(--shadow-floating)] backdrop-blur-2xl">
         {navItems.map((item) => {
           const active = item.isActive(pathname)
           return (
@@ -41,14 +41,14 @@ export const BottomNav = memo(function BottomNav() {
               href={item.href}
               prefetch={true}
               className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 text-xs transition-colors',
+                'flex min-w-[88px] flex-col items-center gap-1 rounded-[20px] px-3 py-2 text-[0.72rem] font-medium tracking-[0.01em] transition-all duration-200',
                 active
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-accent text-primary shadow-[var(--shadow-subtle)]'
+                  : 'text-muted-foreground hover:bg-white/80 hover:text-foreground'
               )}
             >
-              <item.icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} />
-              <span className={cn(active && 'font-semibold')}>{item.label}</span>
+              <item.icon className={cn('h-[1.15rem] w-[1.15rem]', active && 'stroke-[2.35]')} />
+              <span>{item.label}</span>
             </Link>
           )
         })}

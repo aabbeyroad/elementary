@@ -13,6 +13,9 @@ import { Plus, Pencil, Trash2, X, Check, ArrowLeft } from 'lucide-react'
 import { timeToMinutes } from '@/lib/utils/schedule-helpers'
 import type { Child } from '@/types/database'
 import Link from 'next/link'
+import { PageHeader } from '@/components/ui/page-header'
+import { Notice } from '@/components/ui/notice'
+import { Select } from '@/components/ui/select'
 
 const CHILD_COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6']
 
@@ -76,41 +79,51 @@ export default function ChildrenPage() {
   }
 
   return (
-    <div className="flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link href="/settings">
-              <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
-            </Link>
-            <h1 className="text-lg font-bold">자녀 관리</h1>
-          </div>
+    <div className="page-shell">
+      <PageHeader
+        kicker="Children"
+        title="자녀 관리"
+        subtitle="학생 정보와 돌봄 시간창을 같은 규칙으로 정리해 일정 계산의 기준을 만듭니다."
+        actions={
           <Button size="sm" onClick={() => { setEditingChild(null); setShowForm(true) }}>
-            <Plus className="h-4 w-4 mr-1" />
-            추가
+            <Plus className="h-4 w-4" />
+            자녀 추가
           </Button>
-        </div>
-      </header>
+        }
+        leading={
+          <Link href="/settings">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4" />
+              설정으로
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="p-4 space-y-3">
+      <div className="space-y-3">
         {actionError && (
-          <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+          <Notice variant="destructive" title="작업을 완료하지 못했습니다" role="alert">
             {actionError}
-          </p>
+          </Notice>
         )}
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">불러오는 중...</CardContent>
+          </Card>
         ) : children.length === 0 ? (
-          <div className="text-center py-16 space-y-4">
-            <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+          <Card>
+            <CardContent className="flex flex-col items-center py-16 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
               <span className="text-3xl">👶</span>
             </div>
-            <p className="text-muted-foreground">등록된 자녀가 없습니다.</p>
-            <Button onClick={() => { setEditingChild(null); setShowForm(true) }}>
+            <p className="mt-6 text-lg font-semibold tracking-[-0.03em]">등록된 자녀가 없습니다.</p>
+            <p className="mt-2 text-sm text-muted-foreground">첫 자녀를 등록하면 모든 일정 보기가 활성화됩니다.</p>
+            <Button className="mt-6" onClick={() => { setEditingChild(null); setShowForm(true) }}>
               <Plus className="h-4 w-4 mr-1" />
               첫 자녀 등록하기
             </Button>
-          </div>
+            </CardContent>
+          </Card>
         ) : (
           children.map((child) => (
             <Card key={child.id}>
@@ -285,16 +298,12 @@ function ChildForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>학년</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-              >
+              <Select value={grade} onChange={(e) => setGrade(e.target.value)}>
                 <option value="">선택</option>
                 {[1, 2, 3, 4, 5, 6].map(g => (
                   <option key={g} value={g}>{g}학년</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>반</Label>
