@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, lazy, Suspense, useCallback } from 'react'
+import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
@@ -13,9 +13,10 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 
-const ScheduleForm = lazy(() =>
+const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
-)
+
+const ScheduleForm = lazy(loadScheduleForm)
 
 interface WeeklyViewPageProps {
   userId: string
@@ -27,7 +28,15 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   )
   const [showForm, setShowForm] = useState(false)
-  const { schedules, overrides, children, parents, loading, refetch } = useSchedules(familyId)
+  const { schedules, overrides, children, parents, loading, refetch, upsertSchedules } = useSchedules(familyId)
+
+  useEffect(() => {
+    const idleCallback = window.setTimeout(() => {
+      void loadScheduleForm()
+    }, 800)
+
+    return () => window.clearTimeout(idleCallback)
+  }, [])
 
   const weekDays = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -45,9 +54,9 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
     [weekDays, schedules, overrides, children, parents]
   )
 
-  const goToPrevWeek = useCallback(() => setWeekStart(prev => addDays(prev, -7)), [])
-  const goToNextWeek = useCallback(() => setWeekStart(prev => addDays(prev, 7)), [])
-  const goToThisWeek = useCallback(() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 })), [])
+  const goToPrevWeek = useCallback(() => startTransition(() => setWeekStart(prev => addDays(prev, -7))), [])
+  const goToNextWeek = useCallback(() => startTransition(() => setWeekStart(prev => addDays(prev, 7))), [])
+  const goToThisWeek = useCallback(() => startTransition(() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))), [])
 
   const isThisWeek = isSameDay(weekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))
 
@@ -152,7 +161,14 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
             parents={parents}
             schedules={schedules}
             onClose={() => setShowForm(false)}
-            onSaved={() => { setShowForm(false); refetch() }}
+            onSaved={(savedSchedules) => {
+              setShowForm(false)
+              if (savedSchedules && savedSchedules.length > 0) {
+                upsertSchedules(savedSchedules)
+              } else {
+                void refetch({ background: true, force: true })
+              }
+            }}
           />
         </Suspense>
       )}

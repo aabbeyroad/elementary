@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, lazy, Suspense, useCallback } from 'react'
+import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import {
   format,
   startOfMonth,
@@ -24,9 +24,10 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 
-const ScheduleForm = lazy(() =>
+const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
-)
+
+const ScheduleForm = lazy(loadScheduleForm)
 
 interface MonthlyViewPageProps {
   userId: string
@@ -36,7 +37,15 @@ interface MonthlyViewPageProps {
 export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showForm, setShowForm] = useState(false)
-  const { schedules, overrides, children, parents, loading, refetch } = useSchedules(familyId)
+  const { schedules, overrides, children, parents, loading, refetch, upsertSchedules } = useSchedules(familyId)
+
+  useEffect(() => {
+    const idleCallback = window.setTimeout(() => {
+      void loadScheduleForm()
+    }, 800)
+
+    return () => window.clearTimeout(idleCallback)
+  }, [])
 
   // 달력에 표시할 날짜 배열 (이전/다음 달 포함)
   const calendarDays = useMemo(() => {
@@ -79,9 +88,9 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
     return data
   }, [calendarDays, currentMonth, schedules, overrides, children, parents])
 
-  const goToPrevMonth = useCallback(() => setCurrentMonth(prev => subMonths(prev, 1)), [])
-  const goToNextMonth = useCallback(() => setCurrentMonth(prev => addMonths(prev, 1)), [])
-  const goToThisMonth = useCallback(() => setCurrentMonth(new Date()), [])
+  const goToPrevMonth = useCallback(() => startTransition(() => setCurrentMonth(prev => subMonths(prev, 1))), [])
+  const goToNextMonth = useCallback(() => startTransition(() => setCurrentMonth(prev => addMonths(prev, 1))), [])
+  const goToThisMonth = useCallback(() => startTransition(() => setCurrentMonth(new Date())), [])
   const isThisMonth = isSameMonth(currentMonth, new Date())
 
   return (
@@ -184,7 +193,14 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
             parents={parents}
             schedules={schedules}
             onClose={() => setShowForm(false)}
-            onSaved={() => { setShowForm(false); refetch() }}
+            onSaved={(savedSchedules) => {
+              setShowForm(false)
+              if (savedSchedules && savedSchedules.length > 0) {
+                upsertSchedules(savedSchedules)
+              } else {
+                void refetch({ background: true, force: true })
+              }
+            }}
           />
         </Suspense>
       )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, lazy, Suspense, useCallback } from 'react'
+import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
@@ -15,9 +15,10 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 
 // ScheduleForm은 버튼 터치 시에만 필요 → lazy load
-const ScheduleForm = lazy(() =>
+const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
-)
+
+const ScheduleForm = lazy(loadScheduleForm)
 
 interface DashboardContentProps {
   userId: string
@@ -28,7 +29,15 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [showScheduleForm, setShowScheduleForm] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null)
-  const { schedules, overrides, children, parents, loading, refetch } = useSchedules(familyId)
+  const { schedules, overrides, children, parents, loading, refetch, upsertSchedules } = useSchedules(familyId)
+
+  useEffect(() => {
+    const idleCallback = window.setTimeout(() => {
+      void loadScheduleForm()
+    }, 800)
+
+    return () => window.clearTimeout(idleCallback)
+  }, [])
 
   // 선택된 날짜의 일정 계산
   const resolvedSchedules = useMemo(() =>
@@ -36,13 +45,21 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
     [selectedDate, schedules, overrides, children, parents]
   )
 
-  const goToPrevDay = useCallback(() => setSelectedDate(prev => {
-    const d = new Date(prev); d.setDate(d.getDate() - 1); return d
+  const goToPrevDay = useCallback(() => startTransition(() => {
+    setSelectedDate(prev => {
+      const d = new Date(prev)
+      d.setDate(d.getDate() - 1)
+      return d
+    })
   }), [])
-  const goToNextDay = useCallback(() => setSelectedDate(prev => {
-    const d = new Date(prev); d.setDate(d.getDate() + 1); return d
+  const goToNextDay = useCallback(() => startTransition(() => {
+    setSelectedDate(prev => {
+      const d = new Date(prev)
+      d.setDate(d.getDate() + 1)
+      return d
+    })
   }), [])
-  const goToToday = useCallback(() => setSelectedDate(new Date()), [])
+  const goToToday = useCallback(() => startTransition(() => setSelectedDate(new Date())), [])
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
 
   const handleScheduleClick = useCallback((resolved: ResolvedSchedule) => {
@@ -58,11 +75,15 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
     setShowScheduleForm(true)
   }, [])
 
-  const handleFormSaved = useCallback(() => {
+  const handleFormSaved = useCallback((savedSchedules?: Schedule[]) => {
+    if (savedSchedules && savedSchedules.length > 0) {
+      upsertSchedules(savedSchedules)
+    } else {
+      void refetch({ background: true, force: true })
+    }
     setShowScheduleForm(false)
     setEditingSchedule(null)
-    refetch()
-  }, [refetch])
+  }, [refetch, upsertSchedules])
 
   return (
     <div className="page-shell">

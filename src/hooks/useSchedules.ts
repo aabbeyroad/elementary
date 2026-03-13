@@ -5,77 +5,209 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeSync } from './useRealtimeSync'
 import type { Schedule, ScheduleOverride, Child, Profile } from '@/types/database'
 
-// 가족의 일정 데이터를 가져오고 관리하는 훅 (실시간 동기화 포함)
-// 성능 최적화: 점진적 렌더링 + 캐시 + 낙관적 업데이트
-export function useSchedules(familyId: string) {
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [overrides, setOverrides] = useState<ScheduleOverride[]>([])
-  const [children, setChildren] = useState<Child[]>([])
-  const [parents, setParents] = useState<Profile[]>([])
-  const [loading, setLoading] = useState(true)
-  const isMountedRef = useRef(true)
-  const hasFetchedRef = useRef(false)
+type FamilyScheduleState = {
+  schedules: Schedule[]
+  overrides: ScheduleOverride[]
+  children: Child[]
+  parents: Profile[]
+  loading: boolean
+  hasFetched: boolean
+  lastFetchedAt: number
+}
 
-  const fetchAll = useCallback(async () => {
-    const supabase = createClient()
-    // 첫 로딩에만 loading=true (이후 refetch는 백그라운드)
-    if (!hasFetchedRef.current) {
-      setLoading(true)
+type RefetchOptions = {
+  force?: boolean
+  background?: boolean
+}
+
+const STALE_TIME_MS = 60_000
+
+const defaultState: FamilyScheduleState = {
+  schedules: [],
+  overrides: [],
+  children: [],
+  parents: [],
+  loading: true,
+  hasFetched: false,
+  lastFetchedAt: 0,
+}
+
+const familyStore = new Map<string, FamilyScheduleState>()
+const listenersStore = new Map<string, Set<() => void>>()
+const inflightRequests = new Map<string, Promise<void>>()
+
+function getFamilyState(familyId: string) {
+  return familyStore.get(familyId) ?? defaultState
+}
+
+function setFamilyState(
+  familyId: string,
+  updater: FamilyScheduleState | ((current: FamilyScheduleState) => FamilyScheduleState)
+) {
+  const current = getFamilyState(familyId)
+  const next = typeof updater === 'function' ? updater(current) : updater
+  familyStore.set(familyId, next)
+  listenersStore.get(familyId)?.forEach(listener => listener())
+}
+
+function subscribeToFamily(familyId: string, listener: () => void) {
+  const listeners = listenersStore.get(familyId) ?? new Set<() => void>()
+  listeners.add(listener)
+  listenersStore.set(familyId, listeners)
+
+  return () => {
+    const currentListeners = listenersStore.get(familyId)
+    if (!currentListeners) return
+    currentListeners.delete(listener)
+    if (currentListeners.size === 0) {
+      listenersStore.delete(familyId)
     }
+  }
+}
 
-    // 점진적 렌더링: children/parents 먼저 (빠름), schedules/overrides 다음 (느림)
-    // 이렇게 하면 UI 골격을 먼저 보여줄 수 있음
+function upsertById<T extends { id: string }>(current: T[], incoming: T[]) {
+  if (incoming.length === 0) return current
+  const map = new Map(current.map(item => [item.id, item]))
+  for (const item of incoming) {
+    map.set(item.id, item)
+  }
+  return Array.from(map.values())
+}
+
+async function fetchFamilyData(familyId: string, options: RefetchOptions = {}) {
+  const current = getFamilyState(familyId)
+  const isFresh = current.hasFetched && Date.now() - current.lastFetchedAt < STALE_TIME_MS
+
+  if (!options.force) {
+    if (inflightRequests.has(familyId)) {
+      return inflightRequests.get(familyId)!
+    }
+    if (isFresh) {
+      return Promise.resolve()
+    }
+  }
+
+  if (!options.background || !current.hasFetched) {
+    setFamilyState(familyId, {
+      ...current,
+      loading: true,
+    })
+  }
+
+  const request = (async () => {
+    const supabase = createClient()
+
     const [childrenRes, parentsRes] = await Promise.all([
       supabase.from('children').select('*').eq('family_id', familyId).order('sort_order'),
       supabase.from('profiles').select('*').eq('family_id', familyId),
     ])
 
-    if (!isMountedRef.current) return
+    const partialState = {
+      ...getFamilyState(familyId),
+      children: childrenRes.data ?? getFamilyState(familyId).children,
+      parents: parentsRes.data ?? getFamilyState(familyId).parents,
+      hasFetched: getFamilyState(familyId).hasFetched,
+      loading: !getFamilyState(familyId).hasFetched,
+      lastFetchedAt: getFamilyState(familyId).lastFetchedAt,
+      schedules: getFamilyState(familyId).schedules,
+      overrides: getFamilyState(familyId).overrides,
+    }
 
-    if (childrenRes.data) setChildren(childrenRes.data)
-    if (parentsRes.data) setParents(parentsRes.data)
+    setFamilyState(familyId, partialState)
 
     const [schedulesRes, overridesRes] = await Promise.all([
       supabase.from('schedules').select('*').eq('family_id', familyId),
       supabase.from('schedule_overrides').select('*, schedules!inner(family_id)').eq('schedules.family_id', familyId),
     ])
 
-    if (!isMountedRef.current) return
+    setFamilyState(familyId, {
+      schedules: schedulesRes.data ?? partialState.schedules,
+      overrides: overridesRes.data ?? partialState.overrides,
+      children: partialState.children,
+      parents: partialState.parents,
+      loading: false,
+      hasFetched: true,
+      lastFetchedAt: Date.now(),
+    })
+  })()
+    .finally(() => {
+      inflightRequests.delete(familyId)
+    })
 
-    if (schedulesRes.data) setSchedules(schedulesRes.data)
-    if (overridesRes.data) setOverrides(overridesRes.data)
+  inflightRequests.set(familyId, request)
+  return request
+}
 
-    hasFetchedRef.current = true
-    setLoading(false)
-  }, [familyId])
+export function useSchedules(familyId: string) {
+  const [snapshot, setSnapshot] = useState<FamilyScheduleState>(() => getFamilyState(familyId))
+  const isMountedRef = useRef(true)
+  const scheduleIdsRef = useRef<string[]>(snapshot.schedules.map(schedule => schedule.id))
 
   useEffect(() => {
     isMountedRef.current = true
-    fetchAll()
-    return () => { isMountedRef.current = false }
-  }, [fetchAll])
+    setSnapshot(getFamilyState(familyId))
 
-  // 실시간 동기화: 다른 부모가 변경하면 자동 갱신 (디바운스 적용)
-  useRealtimeSync(familyId, fetchAll)
+    const unsubscribe = subscribeToFamily(familyId, () => {
+      if (!isMountedRef.current) return
+      const nextState = getFamilyState(familyId)
+      scheduleIdsRef.current = nextState.schedules.map(schedule => schedule.id)
+      setSnapshot(nextState)
+    })
+
+    const cached = getFamilyState(familyId)
+    const shouldBackgroundRefresh = cached.hasFetched
+    void fetchFamilyData(familyId, shouldBackgroundRefresh ? { background: true } : {})
+
+    return () => {
+      isMountedRef.current = false
+      unsubscribe()
+    }
+  }, [familyId])
+
+  const refetch = useCallback(async (options: RefetchOptions = {}) => {
+    await fetchFamilyData(familyId, {
+      background: snapshot.hasFetched,
+      ...options,
+    })
+  }, [familyId, snapshot.hasFetched])
+
+  useRealtimeSync(familyId, () => {
+    void fetchFamilyData(familyId, { background: true, force: true })
+  }, scheduleIdsRef)
+
+  const upsertSchedules = useCallback((incomingSchedules: Schedule[]) => {
+    setFamilyState(familyId, current => ({
+      ...current,
+      schedules: upsertById(current.schedules, incomingSchedules),
+      hasFetched: current.hasFetched || incomingSchedules.length > 0,
+      loading: false,
+      lastFetchedAt: Date.now(),
+    }))
+  }, [familyId])
 
   const deleteSchedule = useCallback(async (scheduleId: string) => {
-    // 낙관적 업데이트: 즉시 UI에서 제거
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId))
+    const previousSchedules = getFamilyState(familyId).schedules
+    setFamilyState(familyId, current => ({
+      ...current,
+      schedules: current.schedules.filter(schedule => schedule.id !== scheduleId),
+    }))
+
     const supabase = createClient()
     const { error } = await supabase.from('schedules').delete().eq('id', scheduleId)
+
     if (error) {
-      // 실패 시 롤백
-      fetchAll()
+      setFamilyState(familyId, current => ({
+        ...current,
+        schedules: previousSchedules,
+      }))
+      void fetchFamilyData(familyId, { background: true, force: true })
     }
-  }, [fetchAll])
+  }, [familyId])
 
   return {
-    schedules,
-    overrides,
-    children,
-    parents,
-    loading,
-    refetch: fetchAll,
+    ...snapshot,
+    refetch,
     deleteSchedule,
+    upsertSchedules,
   }
 }

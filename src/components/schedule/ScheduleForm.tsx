@@ -18,7 +18,7 @@ interface ScheduleFormProps {
   schedule?: Schedule | null // 수정 시
   defaultDate?: Date
   onClose: () => void
-  onSaved: () => void
+  onSaved: (savedSchedules?: Schedule[]) => void
 }
 
 export function ScheduleForm({
@@ -168,11 +168,13 @@ export function ScheduleForm({
     setError('')
 
     try {
+      let savedSchedules: Schedule[] = []
+
       if (isRecurring) {
         // 반복 일정: 선택된 각 요일에 대해 일정 생성
         if (schedule) {
           // 수정: 기존 일정 업데이트
-          const { error: err } = await supabase
+          const { data, error: err } = await supabase
             .from('schedules')
             .update({
               child_id: childId,
@@ -187,8 +189,10 @@ export function ScheduleForm({
               assigned_parent_id: assignedParentId || null,
               notes: notes.trim() || null,
             })
+            .select()
             .eq('id', schedule.id)
           if (err) throw err
+          savedSchedules = data ?? []
         } else {
           // 새 일정: 각 요일마다 생성
           const inserts = selectedDays.map(day => ({
@@ -205,8 +209,9 @@ export function ScheduleForm({
             assigned_parent_id: assignedParentId || null,
             notes: notes.trim() || null,
           }))
-          const { error: err } = await supabase.from('schedules').insert(inserts)
+          const { data, error: err } = await supabase.from('schedules').insert(inserts).select()
           if (err) throw err
+          savedSchedules = data ?? []
         }
       } else {
         // 일회성 일정
@@ -226,15 +231,21 @@ export function ScheduleForm({
         }
 
         if (schedule) {
-          const { error: err } = await supabase.from('schedules').update(data).eq('id', schedule.id)
+          const { data: updatedRows, error: err } = await supabase
+            .from('schedules')
+            .update(data)
+            .select()
+            .eq('id', schedule.id)
           if (err) throw err
+          savedSchedules = updatedRows ?? []
         } else {
-          const { error: err } = await supabase.from('schedules').insert(data)
+          const { data: insertedRows, error: err } = await supabase.from('schedules').insert(data).select()
           if (err) throw err
+          savedSchedules = insertedRows ?? []
         }
       }
 
-      onSaved()
+      onSaved(savedSchedules)
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
     } finally {
