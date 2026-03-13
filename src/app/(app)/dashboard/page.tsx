@@ -1,25 +1,23 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { DashboardContent } from '@/components/dashboard/DashboardContent'
+import { useAppSession } from '@/components/layout/AppSessionProvider'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function DashboardPage() {
+  const router = useRouter()
+  const { familyId } = useAppSession()
 
-  if (!user) {
-    redirect('/login')
+  useEffect(() => {
+    if (!familyId) {
+      router.replace('/onboarding')
+    }
+  }, [familyId, router])
+
+  if (!familyId) {
+    return null
   }
 
-  // 프로필 확인 - 없으면 온보딩으로
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*, families(*)')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || !profile.family_id) {
-    redirect('/onboarding')
-  }
-
-  return <DashboardContent userId={user.id} familyId={profile.family_id} />
+  return <DashboardContent familyId={familyId} />
 }

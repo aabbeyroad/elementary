@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { BottomNav } from './BottomNav'
 
 interface AppShellProps {
@@ -8,6 +10,14 @@ interface AppShellProps {
 
 // 모바일 최적화된 앱 셸: 상단 콘텐츠 + 하단 네비게이션
 export function AppShell({ children }: AppShellProps) {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.prefetch('/dashboard')
+    router.prefetch('/schedule')
+    router.prefetch('/schedule/monthly')
+  }, [router])
+
   return (
     <div className="min-h-dvh">
       <main className="mx-auto w-full max-w-[1040px] pb-28">

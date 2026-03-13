@@ -3,7 +3,7 @@
 import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DailyView } from '@/components/schedule/DailyView'
 import { useSchedules } from '@/hooks/useSchedules'
@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
+import { DateNavigator } from '@/components/schedule/DateNavigator'
 
 // ScheduleForm은 버튼 터치 시에만 필요 → lazy load
 const loadScheduleForm = () =>
@@ -21,7 +22,6 @@ const loadScheduleForm = () =>
 const ScheduleForm = lazy(loadScheduleForm)
 
 interface DashboardContentProps {
-  userId: string
   familyId: string
 }
 
@@ -102,17 +102,11 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
           </>
         }
         leading={
-          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
-            <Button variant="ghost" size="icon" onClick={goToPrevDay}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
-              {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
-            </div>
-            <Button variant="ghost" size="icon" onClick={goToNextDay}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
+          <DateNavigator
+            label={format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
+            onPrev={goToPrevDay}
+            onNext={goToNextDay}
+          />
         }
       >
         <SegmentedControl

@@ -14,7 +14,7 @@ import {
   isSameMonth,
 } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSchedules } from '@/hooks/useSchedules'
 import { buildDisplaySchedulesForDate, resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
@@ -23,6 +23,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
+import { DateNavigator } from '@/components/schedule/DateNavigator'
 
 const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
@@ -30,7 +31,6 @@ const loadScheduleForm = () =>
 const ScheduleForm = lazy(loadScheduleForm)
 
 interface MonthlyViewPageProps {
-  userId: string
   familyId: string
 }
 
@@ -106,19 +106,7 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
             </Button>
           </>
         }
-        leading={
-          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
-            <Button variant="ghost" size="icon" onClick={goToPrevMonth}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
-              {format(currentMonth, 'yyyy년 M월', { locale: ko })}
-            </div>
-            <Button variant="ghost" size="icon" onClick={goToNextMonth}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        }
+        leading={<DateNavigator label={format(currentMonth, 'yyyy년 M월', { locale: ko })} onPrev={goToPrevMonth} onNext={goToNextMonth} />}
       >
         <SegmentedControl
           className="max-w-[360px]"
@@ -152,6 +140,7 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
                 <Link
                   key={dateStr}
                   href="/dashboard"
+                  prefetch
                   className={`relative rounded-md p-1 min-h-[52px] flex flex-col items-center transition-colors hover:bg-accent/50 ${
                     !isCurrentMonthDay ? 'opacity-30' : ''
                   }`}

@@ -2,7 +2,12 @@
 
 import { memo, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { buildDisplaySchedulesForDate, CATEGORY_COLORS, timeToMinutes } from '@/lib/utils/schedule-helpers'
+import {
+  buildDisplaySchedulesForDate,
+  getScheduleBlockPalette,
+  rgbaFromHex,
+  timeToMinutes,
+} from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import type { Child, DisplaySchedule, Profile, ResolvedSchedule } from '@/types/database'
 import { MapPin, Clock } from 'lucide-react'
@@ -192,10 +197,7 @@ const ChildScheduleBlock = memo(function ChildScheduleBlock({
   const endMinutes = timeToMinutes(schedule.end_time)
   const top = ((startMinutes - TIMELINE_START) / 60) * HOUR_HEIGHT
   const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, MIN_BLOCK_HEIGHT)
-
-  const bgColor = schedule.isAutoCare
-    ? '#16a34a'
-    : schedule.assigned_parent?.color ?? CATEGORY_COLORS[schedule.category] ?? '#6b7280'
+  const palette = getScheduleBlockPalette(schedule)
 
   // 담당 부모 방향 결정 (좌/우 연결선)
   const isUnassigned = !schedule.isAutoCare && !schedule.assigned_parent_id
@@ -203,7 +205,6 @@ const ChildScheduleBlock = memo(function ChildScheduleBlock({
   const showMeta = height >= 48
   const showChild = height >= 64
   const showBadge = height >= 24
-  const fillColor = schedule.isAutoCare ? '#86efac' : bgColor
 
   return (
     <button
@@ -213,23 +214,23 @@ const ChildScheduleBlock = memo(function ChildScheduleBlock({
       style={{
         top,
         height,
-        backgroundColor: fillColor,
+        backgroundColor: palette.background,
       }}
     >
       {showText && (
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium truncate" style={{ color: schedule.isAutoCare ? '#14532d' : '#ffffff' }}>
+            <p className="truncate text-xs font-medium" style={{ color: palette.text }}>
               {schedule.title}
             </p>
             {showMeta && (
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="flex items-center gap-0.5 text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>
+                <span className="flex items-center gap-0.5 text-[10px]" style={{ color: palette.mutedText }}>
                   <Clock className="h-2.5 w-2.5" />
                   {schedule.start_time.slice(0, 5)}~{schedule.end_time.slice(0, 5)}
                 </span>
                 {schedule.location && (
-                  <span className="flex items-center gap-0.5 truncate text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>
+                  <span className="flex items-center gap-0.5 truncate text-[10px]" style={{ color: palette.mutedText }}>
                     <MapPin className="h-2.5 w-2.5" />
                     {schedule.location}
                   </span>
@@ -238,26 +239,27 @@ const ChildScheduleBlock = memo(function ChildScheduleBlock({
             )}
           </div>
           {showBadge && schedule.isAutoCare && (
-            <Badge className="shrink-0 border-0 bg-white/85 px-1 py-0 text-[9px] text-green-700">
+            <Badge className="shrink-0 border-0 px-1 py-0 text-[9px]" style={{ backgroundColor: palette.badgeBackground, color: palette.text }}>
               돌봄
             </Badge>
           )}
           {showBadge && schedule.assigned_parent && !schedule.isAutoCare && (
             <Badge
-              className="shrink-0 border-0 bg-white/16 px-1 py-0 text-[9px] text-white"
+              className="shrink-0 border-0 px-1 py-0 text-[9px]"
+              style={{ backgroundColor: palette.badgeBackground, color: palette.text }}
             >
               {schedule.assigned_parent.display_name}
             </Badge>
           )}
           {showBadge && isUnassigned && (
-            <Badge className="shrink-0 border-0 bg-white/16 px-1 py-0 text-[9px] text-white">미배정</Badge>
+            <Badge className="shrink-0 border-0 px-1 py-0 text-[9px]" style={{ backgroundColor: palette.badgeBackground, color: palette.text }}>미배정</Badge>
           )}
         </div>
       )}
       {showChild && schedule.child && (
         <div className="mt-0.5 flex items-center gap-1">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: schedule.child.color }} />
-          <span className="text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>{schedule.child.name}</span>
+          <span className="text-[10px]" style={{ color: palette.mutedText }}>{schedule.child.name}</span>
         </div>
       )}
     </button>
@@ -286,12 +288,11 @@ const ParentBlock = memo(function ParentBlock({
       style={{
         top,
         height,
-        backgroundColor: parent.color + '30',
-        borderLeft: `3px solid ${parent.color}`,
+        backgroundColor: rgbaFromHex(parent.color, 0.18),
       }}
     >
       {height >= 32 && (
-        <span className="text-[9px] font-medium px-0.5 text-center leading-tight truncate" style={{ color: parent.color }}>
+        <span className="px-0.5 text-center text-[9px] font-medium leading-tight truncate" style={{ color: rgbaFromHex(parent.color, 0.86) }}>
           {schedule.title}
         </span>
       )}

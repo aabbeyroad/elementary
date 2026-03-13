@@ -3,15 +3,20 @@
 import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSchedules } from '@/hooks/useSchedules'
-import { buildDisplaySchedulesForDate, resolveSchedulesForDate, CATEGORY_COLORS } from '@/lib/utils/schedule-helpers'
+import {
+  buildDisplaySchedulesForDate,
+  getScheduleBlockPalette,
+  resolveSchedulesForDate,
+} from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
+import { DateNavigator } from '@/components/schedule/DateNavigator'
 
 const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
@@ -19,7 +24,6 @@ const loadScheduleForm = () =>
 const ScheduleForm = lazy(loadScheduleForm)
 
 interface WeeklyViewPageProps {
-  userId: string
   familyId: string
 }
 
@@ -73,19 +77,7 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
             </Button>
           </>
         }
-        leading={
-          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
-            <Button variant="ghost" size="icon" onClick={goToPrevWeek}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
-              {format(weekDays[0], 'M.d', { locale: ko })} ~ {format(weekDays[6], 'M.d', { locale: ko })}
-            </div>
-            <Button variant="ghost" size="icon" onClick={goToNextWeek}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        }
+        leading={<DateNavigator label={`${format(weekDays[0], 'M.d', { locale: ko })} ~ ${format(weekDays[6], 'M.d', { locale: ko })}`} onPrev={goToPrevWeek} onNext={goToNextWeek} />}
       >
         <SegmentedControl
           className="max-w-[360px]"
@@ -115,6 +107,7 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                 <Link
                   key={day.toISOString()}
                   href="/dashboard"
+                  prefetch
                   className={`rounded-lg border p-1.5 min-h-[120px] space-y-0.5 transition-colors hover:bg-accent/50 ${
                     isToday ? 'border-primary bg-primary/5' : 'border-transparent'
                   }`}
@@ -126,12 +119,14 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                   {daySchedules.slice(0, 4).map(s => (
                     <div
                       key={s.id}
-                      className="text-[9px] leading-tight px-1 py-0.5 rounded truncate text-white"
-                      style={{
-                        backgroundColor: s.isAutoCare
-                          ? '#16a34a'
-                          : s.assigned_parent?.color ?? CATEGORY_COLORS[s.category] ?? '#6b7280',
-                      }}
+                      className="truncate rounded-[8px] px-1.5 py-0.5 text-[9px] font-medium leading-tight"
+                      style={(() => {
+                        const palette = getScheduleBlockPalette(s)
+                        return {
+                          backgroundColor: palette.background,
+                          color: palette.text,
+                        }
+                      })()}
                     >
                       {s.title}
                     </div>

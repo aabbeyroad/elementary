@@ -26,7 +26,7 @@ export function SegmentedControl({ items, className }: SegmentedControlProps) {
 
         if (item.href) {
           return (
-            <Link key={item.label} href={item.href} className={itemClassName}>
+            <Link key={item.label} href={item.href} prefetch className={itemClassName}>
               {item.label}
             </Link>
           )

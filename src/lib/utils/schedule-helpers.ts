@@ -160,6 +160,54 @@ export function minutesToTime(minutes: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
 }
 
+function normalizeHexColor(hex: string) {
+  if (hex.length === 4) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+  }
+  return hex
+}
+
+function parseHexColor(hex: string) {
+  const normalized = normalizeHexColor(hex)
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized)
+  if (!match) {
+    return { r: 107, g: 114, b: 128 }
+  }
+
+  return {
+    r: Number.parseInt(match[1], 16),
+    g: Number.parseInt(match[2], 16),
+    b: Number.parseInt(match[3], 16),
+  }
+}
+
+export function rgbaFromHex(hex: string, alpha: number) {
+  const { r, g, b } = parseHexColor(hex)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+export function tintFromHex(hex: string, amount = 0.82) {
+  const { r, g, b } = parseHexColor(hex)
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount)
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
+}
+
+export function getScheduleBlockPalette(
+  schedule: Pick<DisplaySchedule, 'category' | 'assigned_parent' | 'isAutoCare'>
+) {
+  const baseColor = schedule.isAutoCare
+    ? '#34c759'
+    : schedule.assigned_parent?.color ?? CATEGORY_COLORS[schedule.category] ?? '#6b7280'
+
+  return {
+    base: baseColor,
+    background: schedule.isAutoCare ? rgbaFromHex(baseColor, 0.17) : tintFromHex(baseColor, 0.78),
+    text: schedule.isAutoCare ? rgbaFromHex('#1f6f43', 0.96) : rgbaFromHex(baseColor, 0.92),
+    mutedText: schedule.isAutoCare ? rgbaFromHex('#1f6f43', 0.72) : rgbaFromHex(baseColor, 0.72),
+    badgeBackground: schedule.isAutoCare ? rgbaFromHex('#ffffff', 0.72) : rgbaFromHex('#ffffff', 0.56),
+  }
+}
+
 /**
  * 카테고리별 한국어 라벨
  */
@@ -176,12 +224,12 @@ export const CATEGORY_LABELS: Record<string, string> = {
  * 카테고리별 기본 색상
  */
 export const CATEGORY_COLORS: Record<string, string> = {
-  school: '#3b82f6',
-  academy: '#8b5cf6',
-  pickup: '#f59e0b',
-  dropoff: '#ef4444',
-  other: '#6b7280',
-  custom: '#ec4899',
+  school: '#4f8ff7',
+  academy: '#8a7cf6',
+  pickup: '#f3a341',
+  dropoff: '#ef6a5f',
+  other: '#7c8596',
+  custom: '#d96fb8',
 }
 
 /**

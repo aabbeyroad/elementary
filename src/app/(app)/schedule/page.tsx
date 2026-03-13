@@ -1,19 +1,23 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { WeeklyViewPage } from '@/components/schedule/WeeklyViewPage'
+import { useAppSession } from '@/components/layout/AppSessionProvider'
 
-export default async function SchedulePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function SchedulePage() {
+  const router = useRouter()
+  const { familyId } = useAppSession()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('family_id')
-    .eq('id', user.id)
-    .single()
+  useEffect(() => {
+    if (!familyId) {
+      router.replace('/onboarding')
+    }
+  }, [familyId, router])
 
-  if (!profile?.family_id) redirect('/onboarding')
+  if (!familyId) {
+    return null
+  }
 
-  return <WeeklyViewPage userId={user.id} familyId={profile.family_id} />
+  return <WeeklyViewPage familyId={familyId} />
 }
