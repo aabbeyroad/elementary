@@ -29,7 +29,7 @@ interface WeeklyViewPageProps {
 
 const TIMELINE_START = 7 * 60
 const TIMELINE_END = 21 * 60
-const HOUR_HEIGHT = 56
+const HOUR_HEIGHT = 52
 const MIN_BLOCK_HEIGHT = 18
 
 export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
@@ -100,23 +100,23 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
         {loading ? (
           <WeeklySkeleton />
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1 pb-2">
+          <div>
+            <div>
+              <div className="grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-px pb-2">
                 <div />
                 {weekData.map(({ day }) => {
                   const today = isSameDay(day, new Date())
                   return (
                     <div
                       key={`header-${day.toISOString()}`}
-                      className={`rounded-[16px] px-2 py-2 text-center ${
+                      className={`rounded-[14px] px-1 py-1.5 text-center ${
                         today ? 'bg-primary/8 text-primary' : 'bg-secondary/65 text-foreground'
                       }`}
                     >
-                      <p className="text-[11px] font-medium text-muted-foreground">
+                      <p className="text-[10px] font-medium text-muted-foreground">
                         {format(day, 'EEE', { locale: ko })}
                       </p>
-                      <p className="mt-0.5 text-sm font-semibold">
+                      <p className="mt-0.5 text-[13px] font-semibold">
                         {format(day, 'd')}
                       </p>
                     </div>
@@ -124,13 +124,13 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                 })}
               </div>
 
-              <div className="relative grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1">
+              <div className="relative grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-px">
                 <div className="relative" style={{ height: `${timelineHeight}px` }}>
                   {hours.slice(0, -1).map(hour => {
                     const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
                     return (
                       <div key={`hour-${hour}`} className="absolute left-0 right-0" style={{ top }}>
-                        <span className="block -translate-y-2 text-right text-[11px] font-medium text-muted-foreground">
+                        <span className="block -translate-y-2 text-right text-[10px] font-medium text-muted-foreground">
                           {hour}
                         </span>
                       </div>
@@ -169,7 +169,7 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                         return (
                           <div
                             key={schedule.id}
-                            className="absolute left-1 right-1 overflow-hidden rounded-[12px] px-2 py-1"
+                            className="absolute left-0.5 right-0.5 overflow-hidden rounded-[10px] px-1 py-1"
                             style={{
                               top,
                               height,
@@ -179,9 +179,9 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                           >
                             {showText ? (
                               <div className="space-y-0.5">
-                                <p className="truncate text-[10px] font-semibold">{schedule.title}</p>
+                                <p className="truncate text-[9px] font-semibold">{schedule.title}</p>
                                 {height >= 40 ? (
-                                  <p className="truncate text-[9px]" style={{ color: palette.mutedText }}>
+                                  <p className="truncate text-[8px]" style={{ color: palette.mutedText }}>
                                     {schedule.start_time.slice(0, 5)}-{schedule.end_time.slice(0, 5)}
                                   </p>
                                 ) : null}
@@ -231,18 +231,18 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
 
 function WeeklySkeleton() {
   return (
-    <div className="animate-pulse overflow-x-auto">
-      <div className="min-w-[760px]">
-        <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1 pb-2">
+    <div className="animate-pulse">
+      <div>
+        <div className="grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-px pb-2">
           <div />
           {Array.from({ length: 7 }, (_, i) => (
             <div key={i} className="surface-card-muted h-14" />
           ))}
         </div>
-        <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] gap-1">
+        <div className="grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-px">
           <div className="space-y-10 pt-2">
             {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="ml-auto h-3 w-4 rounded bg-muted" />
+              <div key={i} className="ml-auto h-3 w-3 rounded bg-muted" />
             ))}
           </div>
           {Array.from({ length: 7 }, (_, i) => (

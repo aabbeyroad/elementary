@@ -12,22 +12,22 @@ interface DateNavigatorProps {
 
 export function DateNavigator({ label, onPrev, onNext, className }: DateNavigatorProps) {
   return (
-    <div className={`glass-toolbar grid w-full max-w-[360px] grid-cols-[40px,minmax(0,1fr),40px] items-center gap-1 p-1 ${className ?? ''}`}>
+    <div className={`glass-toolbar relative w-full max-w-[360px] px-11 py-1 ${className ?? ''}`}>
       <Button
         variant="ghost"
         size="icon"
-        className="h-9 w-9 justify-self-start rounded-[14px]"
+        className="absolute left-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-[14px]"
         onClick={onPrev}
       >
         <ChevronLeft className="h-4.5 w-4.5" />
       </Button>
-      <div className="truncate whitespace-nowrap px-2 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
+      <div className="truncate whitespace-nowrap px-2 py-2 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
         {label}
       </div>
       <Button
         variant="ghost"
         size="icon"
-        className="h-9 w-9 justify-self-end rounded-[14px]"
+        className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-[14px]"
         onClick={onNext}
       >
         <ChevronRight className="h-4.5 w-4.5" />
