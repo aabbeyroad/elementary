@@ -90,7 +90,6 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
       <PageHeader
         kicker="Family Planner"
         title={format(selectedDate, 'M월 d일', { locale: ko })}
-        subtitle={format(selectedDate, 'EEEE · 아이들의 하루를 한 화면에서 정리하세요.', { locale: ko })}
         actions={
           <>
             {!isToday && (
@@ -103,11 +102,11 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
           </>
         }
         leading={
-          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
             <Button variant="ghost" size="icon" onClick={goToPrevDay}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
               {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
             </div>
             <Button variant="ghost" size="icon" onClick={goToNextDay}>
@@ -117,6 +116,7 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
         }
       >
         <SegmentedControl
+          className="max-w-[360px]"
           items={[
             { label: '일간', active: true },
             { label: '주간', href: '/schedule' },

@@ -83,7 +83,6 @@ export default function ChildrenPage() {
       <PageHeader
         kicker="Children"
         title="자녀 관리"
-        subtitle="학생 정보와 돌봄 시간창을 같은 규칙으로 정리해 일정 계산의 기준을 만듭니다."
         actions={
           <Button size="sm" onClick={() => { setEditingChild(null); setShowForm(true) }}>
             <Plus className="h-4 w-4" />

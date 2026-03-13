@@ -98,7 +98,6 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
       <PageHeader
         kicker="Monthly Overview"
         title={format(currentMonth, 'yyyy년 M월', { locale: ko })}
-        subtitle="월 단위로 일정 밀도와 미배정 신호를 차분하게 확인할 수 있습니다."
         actions={
           <>
             {!isThisMonth && <Button variant="secondary" size="sm" onClick={goToThisMonth}>이번달</Button>}
@@ -108,11 +107,11 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
           </>
         }
         leading={
-          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
             <Button variant="ghost" size="icon" onClick={goToPrevMonth}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
               {format(currentMonth, 'yyyy년 M월', { locale: ko })}
             </div>
             <Button variant="ghost" size="icon" onClick={goToNextMonth}>
@@ -122,6 +121,7 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
         }
       >
         <SegmentedControl
+          className="max-w-[360px]"
           items={[
             { label: '일간', href: '/dashboard' },
             { label: '주간', href: '/schedule' },

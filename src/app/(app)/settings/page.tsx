@@ -95,7 +95,6 @@ export default function SettingsPage() {
       <PageHeader
         kicker="Settings"
         title="가족 설정"
-        subtitle="프로필, 초대 코드, 연결된 자녀 관리 진입점을 한 흐름으로 정리했습니다."
       />
 
       <div className="space-y-4">

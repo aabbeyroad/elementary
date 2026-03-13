@@ -101,7 +101,6 @@ export default function SuppliesPage() {
       <PageHeader
         kicker="Supplies"
         title="준비물 관리"
-        subtitle="날짜별 체크리스트를 차분하게 정리해 등교 전 확인 부담을 줄입니다."
         actions={
           <Button size="sm" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" /> 준비물 추가

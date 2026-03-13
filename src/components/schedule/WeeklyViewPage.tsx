@@ -65,7 +65,6 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
       <PageHeader
         kicker="Weekly Overview"
         title={`${format(weekDays[0], 'M월 d일', { locale: ko })} - ${format(weekDays[6], 'M월 d일', { locale: ko })}`}
-        subtitle="주 단위로 일정, 자동 돌봄, 미배정 블록을 빠르게 훑어볼 수 있습니다."
         actions={
           <>
             {!isThisWeek && <Button variant="secondary" size="sm" onClick={goToThisWeek}>이번주</Button>}
@@ -75,11 +74,11 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
           </>
         }
         leading={
-          <div className="glass-toolbar inline-flex items-center gap-1 p-1">
+          <div className="glass-toolbar grid w-full max-w-[360px] grid-cols-[48px,minmax(0,1fr),48px] items-center p-1">
             <Button variant="ghost" size="icon" onClick={goToPrevWeek}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="px-3 text-sm font-medium tracking-[-0.01em] text-foreground">
+            <div className="px-3 text-center text-sm font-medium tracking-[-0.01em] text-foreground">
               {format(weekDays[0], 'M.d', { locale: ko })} ~ {format(weekDays[6], 'M.d', { locale: ko })}
             </div>
             <Button variant="ghost" size="icon" onClick={goToNextWeek}>
@@ -89,6 +88,7 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
         }
       >
         <SegmentedControl
+          className="max-w-[360px]"
           items={[
             { label: '일간', href: '/dashboard' },
             { label: '주간', active: true },

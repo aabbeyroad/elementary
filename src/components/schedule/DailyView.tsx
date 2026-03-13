@@ -21,6 +21,7 @@ interface DailyViewProps {
 const TIMELINE_START = 7 * 60
 const TIMELINE_END = 21 * 60
 const HOUR_HEIGHT = 64
+const MIN_BLOCK_HEIGHT = 14
 
 /**
  * 3컬럼 일간 타임라인 뷰
@@ -155,8 +156,6 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
                   <ChildScheduleBlock
                     key={schedule.id}
                     schedule={schedule}
-                    parentLeft={parentLeft}
-                    parentRight={parentRight}
                     onScheduleClick={onScheduleClick}
                   />
                 ))}
@@ -184,86 +183,81 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
  */
 const ChildScheduleBlock = memo(function ChildScheduleBlock({
   schedule,
-  parentLeft,
-  parentRight,
   onScheduleClick,
 }: {
   schedule: DisplaySchedule
-  parentLeft: Profile | null
-  parentRight: Profile | null
   onScheduleClick: (schedule: ResolvedSchedule) => void
 }) {
   const startMinutes = timeToMinutes(schedule.start_time)
   const endMinutes = timeToMinutes(schedule.end_time)
   const top = ((startMinutes - TIMELINE_START) / 60) * HOUR_HEIGHT
-  const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 32)
+  const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, MIN_BLOCK_HEIGHT)
 
   const bgColor = schedule.isAutoCare
     ? '#16a34a'
     : schedule.assigned_parent?.color ?? CATEGORY_COLORS[schedule.category] ?? '#6b7280'
 
   // 담당 부모 방향 결정 (좌/우 연결선)
-  const isAssignedLeft = !schedule.isAutoCare && schedule.assigned_parent_id && parentLeft?.id === schedule.assigned_parent_id
-  const isAssignedRight = !schedule.isAutoCare && schedule.assigned_parent_id && parentRight?.id === schedule.assigned_parent_id
   const isUnassigned = !schedule.isAutoCare && !schedule.assigned_parent_id
+  const showText = height >= 28
+  const showMeta = height >= 48
+  const showChild = height >= 64
+  const showBadge = height >= 24
+  const fillColor = schedule.isAutoCare ? '#86efac' : bgColor
 
   return (
     <button
       onClick={() => { if (!schedule.isAutoCare) onScheduleClick(schedule) }}
-      className="absolute left-0 right-0 overflow-hidden rounded-[18px] p-2 text-left shadow-[var(--shadow-subtle)] transition-transform active:scale-[0.98]"
+      className="absolute left-0 right-0 overflow-hidden rounded-[14px] p-2 text-left shadow-[var(--shadow-subtle)] transition-transform active:scale-[0.98]"
       disabled={schedule.isAutoCare}
       style={{
         top,
         height,
-        backgroundColor: schedule.isAutoCare ? '#dcfce7' : bgColor + '20',
-        // 담당 부모 방향에 따라 해당 쪽 보더를 강조
-        borderLeft: isAssignedLeft ? `4px solid ${bgColor}` : (isUnassigned ? '3px solid #f97316' : '1px solid transparent'),
-        borderRight: isAssignedRight ? `4px solid ${bgColor}` : '1px solid transparent',
-        borderTop: schedule.isAutoCare ? '1px dashed #86efac' : undefined,
-        borderBottom: schedule.isAutoCare ? '1px dashed #86efac' : undefined,
+        backgroundColor: fillColor,
       }}
     >
-      <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium truncate" style={{ color: bgColor }}>
-            {schedule.title}
-          </p>
-          {height >= 44 && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                <Clock className="h-2.5 w-2.5" />
-                {schedule.start_time.slice(0, 5)}~{schedule.end_time.slice(0, 5)}
-              </span>
-              {schedule.location && (
-                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate">
-                  <MapPin className="h-2.5 w-2.5" />
-                  {schedule.location}
+      {showText && (
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium truncate" style={{ color: schedule.isAutoCare ? '#14532d' : '#ffffff' }}>
+              {schedule.title}
+            </p>
+            {showMeta && (
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <span className="flex items-center gap-0.5 text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>
+                  <Clock className="h-2.5 w-2.5" />
+                  {schedule.start_time.slice(0, 5)}~{schedule.end_time.slice(0, 5)}
                 </span>
-              )}
-            </div>
+                {schedule.location && (
+                  <span className="flex items-center gap-0.5 truncate text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>
+                    <MapPin className="h-2.5 w-2.5" />
+                    {schedule.location}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          {showBadge && schedule.isAutoCare && (
+            <Badge className="shrink-0 border-0 bg-white/85 px-1 py-0 text-[9px] text-green-700">
+              돌봄
+            </Badge>
+          )}
+          {showBadge && schedule.assigned_parent && !schedule.isAutoCare && (
+            <Badge
+              className="shrink-0 border-0 bg-white/16 px-1 py-0 text-[9px] text-white"
+            >
+              {schedule.assigned_parent.display_name}
+            </Badge>
+          )}
+          {showBadge && isUnassigned && (
+            <Badge className="shrink-0 border-0 bg-white/16 px-1 py-0 text-[9px] text-white">미배정</Badge>
           )}
         </div>
-        {schedule.isAutoCare && (
-          <Badge className="text-[9px] shrink-0 text-white border-0 bg-green-600 px-1 py-0">
-            돌봄
-          </Badge>
-        )}
-        {schedule.assigned_parent && !schedule.isAutoCare && (
-          <Badge
-            className="text-[9px] shrink-0 text-white border-0 px-1 py-0"
-            style={{ backgroundColor: schedule.assigned_parent.color }}
-          >
-            {schedule.assigned_parent.display_name}
-          </Badge>
-        )}
-        {isUnassigned && (
-          <Badge variant="destructive" className="text-[9px] shrink-0 px-1 py-0">미배정</Badge>
-        )}
-      </div>
-      {schedule.child && height >= 56 && (
+      )}
+      {showChild && schedule.child && (
         <div className="mt-0.5 flex items-center gap-1">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: schedule.child.color }} />
-          <span className="text-[10px] text-muted-foreground">{schedule.child.name}</span>
+          <span className="text-[10px]" style={{ color: schedule.isAutoCare ? '#166534' : 'rgba(255,255,255,0.88)' }}>{schedule.child.name}</span>
         </div>
       )}
     </button>

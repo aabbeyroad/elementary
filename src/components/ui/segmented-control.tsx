@@ -15,10 +15,10 @@ interface SegmentedControlProps {
 
 export function SegmentedControl({ items, className }: SegmentedControlProps) {
   return (
-    <div className={cn("segmented-shell", className)}>
+    <div className={cn("segmented-shell grid w-full grid-flow-col auto-cols-fr", className)}>
       {items.map((item) => {
         const itemClassName = cn(
-          "inline-flex min-w-[68px] items-center justify-center rounded-full px-4 py-2 text-sm font-medium tracking-[-0.01em] transition-all duration-200",
+          "inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-medium tracking-[-0.01em] transition-all duration-200",
           item.active
             ? "bg-foreground text-background shadow-[var(--shadow-subtle)]"
             : "text-muted-foreground hover:bg-white/82 hover:text-foreground"
