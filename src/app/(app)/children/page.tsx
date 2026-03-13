@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useModalDialog } from '@/hooks/useModalDialog'
 import { Plus, Pencil, Trash2, X, Check, ArrowLeft } from 'lucide-react'
+import { timeToMinutes } from '@/lib/utils/schedule-helpers'
 import type { Child } from '@/types/database'
 import Link from 'next/link'
 
@@ -18,6 +21,9 @@ export default function ChildrenPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingChild, setEditingChild] = useState<Child | null>(null)
+  const [pendingDeleteChild, setPendingDeleteChild] = useState<Child | null>(null)
+  const [deletingChildId, setDeletingChildId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
   const [familyId, setFamilyId] = useState<string | null>(null)
 
   const fetchChildren = useCallback(async () => {
@@ -49,11 +55,19 @@ export default function ChildrenPage() {
   }, [fetchChildren])
 
   const handleDelete = async (childId: string) => {
-    if (!confirm('정말 삭제하시겠습니까? 연결된 일정과 준비물도 함께 삭제됩니다.')) return
-
-    const supabase = createClient()
-    await supabase.from('children').delete().eq('id', childId)
-    fetchChildren()
+    setDeletingChildId(childId)
+    setActionError('')
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('children').delete().eq('id', childId)
+      if (error) throw error
+      setPendingDeleteChild(null)
+      await fetchChildren()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '자녀 삭제에 실패했습니다.')
+    } finally {
+      setDeletingChildId(null)
+    }
   }
 
   const handleEdit = (child: Child) => {
@@ -79,6 +93,11 @@ export default function ChildrenPage() {
       </header>
 
       <div className="p-4 space-y-3">
+        {actionError && (
+          <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+            {actionError}
+          </p>
+        )}
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
         ) : children.length === 0 ? (
@@ -119,7 +138,12 @@ export default function ChildrenPage() {
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(child)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(child.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPendingDeleteChild(child)}
+                    aria-label={`${child.name} 삭제`}
+                  >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -137,6 +161,22 @@ export default function ChildrenPage() {
           childCount={children.length}
           onClose={() => { setShowForm(false); setEditingChild(null) }}
           onSaved={() => { setShowForm(false); setEditingChild(null); fetchChildren() }}
+        />
+      )}
+
+      {pendingDeleteChild && (
+        <ConfirmDialog
+          title="자녀를 삭제할까요?"
+          description={`${pendingDeleteChild.name}과 연결된 일정 및 준비물도 함께 삭제됩니다.`}
+          confirmLabel="삭제"
+          variant="destructive"
+          loading={deletingChildId === pendingDeleteChild.id}
+          onCancel={() => {
+            if (!deletingChildId) {
+              setPendingDeleteChild(null)
+            }
+          }}
+          onConfirm={() => handleDelete(pendingDeleteChild.id)}
         />
       )}
     </div>
@@ -166,10 +206,16 @@ function ChildForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
+  const { dialogRef, closeButtonRef } = useModalDialog(onClose)
+  const hasTimeWindowError = timeToMinutes(careStart) >= timeToMinutes(careEnd)
 
   const handleSave = async () => {
     if (!name.trim()) {
       setError('이름을 입력해주세요.')
+      return
+    }
+    if (hasTimeWindowError) {
+      setError('돌봄 시작 시간은 종료 시간보다 빨라야 합니다.')
       return
     }
     setLoading(true)
@@ -209,11 +255,18 @@ function ChildForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center">
-      <div className="w-full max-w-lg bg-background rounded-t-2xl p-6 space-y-4 animate-in slide-in-from-bottom">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="child-form-title"
+        className="w-full max-w-lg bg-background rounded-t-2xl p-6 space-y-4 animate-in slide-in-from-bottom"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">{child ? '자녀 수정' : '자녀 추가'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <h2 id="child-form-title" className="text-lg font-bold">{child ? '자녀 수정' : '자녀 추가'}</h2>
+          <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -265,6 +318,11 @@ function ChildForm({
               <Input type="time" value={careEnd} onChange={(e) => setCareEnd(e.target.value)} />
             </div>
           </div>
+          {hasTimeWindowError && (
+            <p className="text-sm text-destructive" role="alert">
+              돌봄 시작 시간은 종료 시간보다 빨라야 합니다.
+            </p>
+          )}
 
           <div className="space-y-1.5">
             <Label>색상</Label>
@@ -286,7 +344,7 @@ function ChildForm({
           </div>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
         <Button onClick={handleSave} disabled={loading} className="w-full h-12">
           <Check className="h-4 w-4 mr-1" />

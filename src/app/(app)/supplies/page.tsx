@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useModalDialog } from '@/hooks/useModalDialog'
 import { Plus, X, Check, Square, CheckSquare, Trash2 } from 'lucide-react'
 import type { Supply, Child } from '@/types/database'
 
@@ -19,6 +21,9 @@ export default function SuppliesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [pendingDeleteSupply, setPendingDeleteSupply] = useState<Supply | null>(null)
+  const [deletingSupplyId, setDeletingSupplyId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -62,9 +67,19 @@ export default function SuppliesPage() {
   }
 
   const deleteSupply = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('supplies').delete().eq('id', id)
-    fetchData()
+    setDeletingSupplyId(id)
+    setActionError('')
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('supplies').delete().eq('id', id)
+      if (error) throw error
+      setPendingDeleteSupply(null)
+      await fetchData()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '준비물 삭제에 실패했습니다.')
+    } finally {
+      setDeletingSupplyId(null)
+    }
   }
 
   // 날짜별로 그룹화
@@ -96,6 +111,11 @@ export default function SuppliesPage() {
       </header>
 
       <div className="p-4 space-y-4">
+        {actionError && (
+          <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+            {actionError}
+          </p>
+        )}
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
         ) : supplies.length === 0 ? (
@@ -147,7 +167,12 @@ export default function SuppliesPage() {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => deleteSupply(supply.id)} className="shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteSupply(supply)}
+                            className="shrink-0"
+                            aria-label={`${supply.title} 삭제`}
+                          >
                             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                           </button>
                         </CardContent>
@@ -166,6 +191,22 @@ export default function SuppliesPage() {
           childList={children}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); fetchData() }}
+        />
+      )}
+
+      {pendingDeleteSupply && (
+        <ConfirmDialog
+          title="준비물을 삭제할까요?"
+          description={`'${pendingDeleteSupply.title}' 항목을 삭제하면 다시 되돌릴 수 없습니다.`}
+          confirmLabel="삭제"
+          variant="destructive"
+          loading={deletingSupplyId === pendingDeleteSupply.id}
+          onCancel={() => {
+            if (!deletingSupplyId) {
+              setPendingDeleteSupply(null)
+            }
+          }}
+          onConfirm={() => deleteSupply(pendingDeleteSupply.id)}
         />
       )}
     </div>
@@ -190,6 +231,7 @@ function SupplyForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
+  const { dialogRef, closeButtonRef } = useModalDialog(onClose)
 
   const handleSave = async () => {
     if (!title.trim()) { setError('제목을 입력해주세요.'); return }
@@ -214,11 +256,18 @@ function SupplyForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center">
-      <div className="w-full max-w-lg bg-background rounded-t-2xl p-6 space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supply-form-title"
+        className="w-full max-w-lg bg-background rounded-t-2xl p-6 space-y-4"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">준비물 추가</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
+          <h2 id="supply-form-title" className="text-lg font-bold">준비물 추가</h2>
+          <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
 
         <div className="space-y-3">
@@ -254,7 +303,7 @@ function SupplyForm({
           </div>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
         <Button onClick={handleSave} disabled={loading} className="w-full h-12">
           <Check className="h-4 w-4 mr-1" />
