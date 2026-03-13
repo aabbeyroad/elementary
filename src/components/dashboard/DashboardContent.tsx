@@ -22,7 +22,7 @@ interface DashboardContentProps {
   familyId: string
 }
 
-export function DashboardContent({ userId: _userId, familyId }: DashboardContentProps) {
+export function DashboardContent({ familyId }: DashboardContentProps) {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [showScheduleForm, setShowScheduleForm] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null)
@@ -67,7 +67,7 @@ export function DashboardContent({ userId: _userId, familyId }: DashboardContent
       {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">돌봄돌봄</h1>
+          <div />
           <div className="flex items-center gap-2">
             {!isToday && (
               <Button variant="ghost" size="sm" onClick={goToToday}>오늘</Button>
@@ -133,6 +133,7 @@ export function DashboardContent({ userId: _userId, familyId }: DashboardContent
             familyId={familyId}
             childList={children}
             parents={parents}
+            schedules={schedules}
             schedule={editingSchedule}
             defaultDate={selectedDate}
             onClose={() => { setShowScheduleForm(false); setEditingSchedule(null) }}

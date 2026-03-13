@@ -102,6 +102,10 @@ export interface ResolvedSchedule extends Omit<Schedule, 'day_of_week' | 'specif
   child?: Child;
 }
 
+export interface DisplaySchedule extends ResolvedSchedule {
+  isAutoCare?: boolean;
+}
+
 export interface CareGap {
   child_id: string;
   date: string;

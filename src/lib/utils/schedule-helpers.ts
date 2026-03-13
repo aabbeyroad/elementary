@@ -1,5 +1,12 @@
 import { format, getDay } from 'date-fns'
-import type { Schedule, ScheduleOverride, ResolvedSchedule, Child, Profile } from '@/types/database'
+import type {
+  Child,
+  DisplaySchedule,
+  Profile,
+  ResolvedSchedule,
+  Schedule,
+  ScheduleOverride,
+} from '@/types/database'
 
 /**
  * 특정 날짜에 해당하는 일정 목록을 계산합니다.
@@ -61,6 +68,79 @@ export function resolveSchedulesForDate(
 
   // 시작 시간 순으로 정렬
   return result.sort((a, b) => a.start_time.localeCompare(b.start_time))
+}
+
+export function buildDisplaySchedulesForDate(
+  date: Date,
+  child: Child,
+  schedules: ResolvedSchedule[]
+): DisplaySchedule[] {
+  const careWindowStart = timeToMinutes(child.care_window_start)
+  const careWindowEnd = timeToMinutes(child.care_window_end)
+  const childSchedules = schedules
+    .filter(schedule => schedule.child_id === child.id)
+    .sort((left, right) => left.start_time.localeCompare(right.start_time))
+
+  const displaySchedules: DisplaySchedule[] = []
+  let cursor = careWindowStart
+
+  for (const schedule of childSchedules) {
+    const startMinutes = timeToMinutes(schedule.start_time)
+    const endMinutes = timeToMinutes(schedule.end_time)
+
+    if (startMinutes > cursor) {
+      displaySchedules.push({
+        id: `auto-care-${child.id}-${format(date, 'yyyy-MM-dd')}-${cursor}-${startMinutes}`,
+        family_id: child.family_id,
+        child_id: child.id,
+        title: '돌봄',
+        category: 'other',
+        custom_category_id: null,
+        location: '자동 채움',
+        start_time: minutesToTime(cursor),
+        end_time: minutesToTime(startMinutes),
+        assigned_parent_id: null,
+        notes: '명시된 일정 외 시간은 자동으로 돌봄 블록으로 표시됩니다.',
+        created_at: schedule.created_at,
+        updated_at: schedule.updated_at,
+        date: format(date, 'yyyy-MM-dd'),
+        is_overridden: false,
+        is_cancelled: false,
+        child,
+        isAutoCare: true,
+      })
+    }
+
+    displaySchedules.push(schedule)
+    cursor = Math.max(cursor, endMinutes)
+  }
+
+  if (cursor < careWindowEnd) {
+    const fallbackSchedule = childSchedules[childSchedules.length - 1]
+
+    displaySchedules.push({
+      id: `auto-care-${child.id}-${format(date, 'yyyy-MM-dd')}-${cursor}-${careWindowEnd}`,
+      family_id: child.family_id,
+      child_id: child.id,
+      title: '돌봄',
+      category: 'other',
+      custom_category_id: null,
+      location: '자동 채움',
+      start_time: minutesToTime(cursor),
+      end_time: minutesToTime(careWindowEnd),
+      assigned_parent_id: null,
+      notes: '명시된 일정 외 시간은 자동으로 돌봄 블록으로 표시됩니다.',
+      created_at: fallbackSchedule?.created_at ?? new Date().toISOString(),
+      updated_at: fallbackSchedule?.updated_at ?? new Date().toISOString(),
+      date: format(date, 'yyyy-MM-dd'),
+      is_overridden: false,
+      is_cancelled: false,
+      child,
+      isAutoCare: true,
+    })
+  }
+
+  return displaySchedules.sort((a, b) => a.start_time.localeCompare(b.start_time))
 }
 
 /**

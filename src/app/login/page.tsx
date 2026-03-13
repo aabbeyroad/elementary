@@ -1,14 +1,16 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient, hasSupabaseBrowserEnv } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
-  const supabase = createClient()
+  const authConfigured = hasSupabaseBrowserEnv()
 
   // Google 로그인
   const handleGoogleLogin = async () => {
+    if (!authConfigured) return
+    const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -19,6 +21,8 @@ export default function LoginPage() {
 
   // 카카오 로그인
   const handleKakaoLogin = async () => {
+    if (!authConfigured) return
+    const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
@@ -46,6 +50,7 @@ export default function LoginPage() {
             onClick={handleGoogleLogin}
             variant="outline"
             className="w-full h-12 text-base gap-3"
+            disabled={!authConfigured}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -59,6 +64,7 @@ export default function LoginPage() {
             onClick={handleKakaoLogin}
             className="w-full h-12 text-base gap-3"
             style={{ backgroundColor: '#FEE500', color: '#191919' }}
+            disabled={!authConfigured}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#191919">
               <path d="M12 3C6.48 3 2 6.36 2 10.43c0 2.62 1.75 4.93 4.38 6.24-.19.72-.7 2.6-.8 3.01-.12.5.18.5.39.36.16-.1 2.59-1.76 3.63-2.47.78.11 1.58.17 2.4.17 5.52 0 10-3.36 10-7.31S17.52 3 12 3z"/>
@@ -68,6 +74,11 @@ export default function LoginPage() {
           <p className="text-xs text-center text-muted-foreground pt-2">
             로그인하면 이용약관에 동의하는 것으로 간주합니다.
           </p>
+          {!authConfigured && (
+            <p className="text-xs text-center text-amber-600">
+              Supabase 로그인 설정이 없어 현재 빌드에서는 로그인 버튼이 비활성화됩니다.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

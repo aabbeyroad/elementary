@@ -18,7 +18,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSchedules } from '@/hooks/useSchedules'
-import { resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
+import { buildDisplaySchedulesForDate, resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import Link from 'next/link'
 
@@ -31,7 +31,7 @@ interface MonthlyViewPageProps {
   familyId: string
 }
 
-export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPageProps) {
+export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showForm, setShowForm] = useState(false)
   const { schedules, overrides, children, parents, loading, refetch } = useSchedules(familyId)
@@ -59,16 +59,17 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
       const isCurrentMonthDay = isSameMonth(day, currentMonth)
       const dateStr = format(day, 'yyyy-MM-dd')
       const resolved = resolveSchedulesForDate(day, schedules, overrides, children, parents)
+      const displaySchedules = children.flatMap(child => buildDisplaySchedulesForDate(day, child, resolved))
 
       // 돌봄 공백 감지는 현재 월의 날짜에만 적용 (이전/다음 달은 스킵 → 연산 절약)
       const hasGap = isCurrentMonthDay && resolved.length > 0
         ? children.some(child => detectCareGaps(child, resolved, dateStr).length > 0)
         : false
 
-      const childColors = [...new Set(resolved.map(s => s.child?.color).filter(Boolean))] as string[]
+      const childColors = [...new Set(displaySchedules.map(s => s.isAutoCare ? '#16a34a' : s.child?.color).filter(Boolean))] as string[]
 
       data.set(dateStr, {
-        count: resolved.length,
+        count: displaySchedules.length,
         hasGap,
         childColors: childColors.slice(0, 3),
       })
@@ -85,7 +86,7 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
     <div className="flex flex-col">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">돌봄돌봄</h1>
+          <div />
           <div className="flex items-center gap-2">
             {!isThisMonth && <Button variant="ghost" size="sm" onClick={goToThisMonth}>이번달</Button>}
             <Button size="sm" onClick={() => setShowForm(true)}>
@@ -170,6 +171,7 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
             familyId={familyId}
             childList={children}
             parents={parents}
+            schedules={schedules}
             onClose={() => setShowForm(false)}
             onSaved={() => { setShowForm(false); refetch() }}
           />

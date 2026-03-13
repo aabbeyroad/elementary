@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSchedules } from '@/hooks/useSchedules'
-import { resolveSchedulesForDate, CATEGORY_COLORS } from '@/lib/utils/schedule-helpers'
+import { buildDisplaySchedulesForDate, resolveSchedulesForDate, CATEGORY_COLORS } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import Link from 'next/link'
 
@@ -20,7 +20,7 @@ interface WeeklyViewPageProps {
   familyId: string
 }
 
-export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProps) {
+export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   )
@@ -37,7 +37,8 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
       const resolved = resolveSchedulesForDate(day, schedules, overrides, children, parents)
       const dateStr = format(day, 'yyyy-MM-dd')
       const gaps = children.flatMap(child => detectCareGaps(child, resolved, dateStr))
-      return { day, schedules: resolved, gaps }
+      const displaySchedules = children.flatMap(child => buildDisplaySchedulesForDate(day, child, resolved))
+      return { day, schedules: displaySchedules, gaps }
     }),
     [weekDays, schedules, overrides, children, parents]
   )
@@ -52,7 +53,7 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
     <div className="flex flex-col">
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">돌봄돌봄</h1>
+          <div />
           <div className="flex items-center gap-2">
             {!isThisWeek && <Button variant="ghost" size="sm" onClick={goToThisWeek}>이번주</Button>}
             <Button size="sm" onClick={() => setShowForm(true)}>
@@ -108,7 +109,9 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
                       key={s.id}
                       className="text-[9px] leading-tight px-1 py-0.5 rounded truncate text-white"
                       style={{
-                        backgroundColor: s.assigned_parent?.color ?? CATEGORY_COLORS[s.category] ?? '#6b7280',
+                        backgroundColor: s.isAutoCare
+                          ? '#16a34a'
+                          : s.assigned_parent?.color ?? CATEGORY_COLORS[s.category] ?? '#6b7280',
                       }}
                     >
                       {s.title}
@@ -120,7 +123,7 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
 
                   {gaps.length > 0 && (
                     <div className="text-[9px] text-orange-600 bg-orange-50 px-1 py-0.5 rounded text-center font-medium">
-                      공백 {gaps.length}
+                      미배정 {gaps.length}
                     </div>
                   )}
                 </Link>
@@ -136,6 +139,7 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
             familyId={familyId}
             childList={children}
             parents={parents}
+            schedules={schedules}
             onClose={() => setShowForm(false)}
             onSaved={() => { setShowForm(false); refetch() }}
           />

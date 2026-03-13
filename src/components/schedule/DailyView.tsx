@@ -2,9 +2,9 @@
 
 import { memo, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { CATEGORY_COLORS, timeToMinutes } from '@/lib/utils/schedule-helpers'
+import { buildDisplaySchedulesForDate, CATEGORY_COLORS, timeToMinutes } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
-import type { ResolvedSchedule, Child, CareGap } from '@/types/database'
+import type { Child, DisplaySchedule, ResolvedSchedule } from '@/types/database'
 import { MapPin, Clock } from 'lucide-react'
 
 interface DailyViewProps {
@@ -26,7 +26,15 @@ const HOUR_HEIGHT = 64 // px per hour
  * - 담당 부모별 색상 구분
  */
 export function DailyView({ schedules, childList, date, onScheduleClick }: DailyViewProps) {
-  // 모든 자녀의 돌봄 공백 계산
+  const displaySchedules = useMemo(
+    () =>
+      childList.flatMap(child =>
+        buildDisplaySchedulesForDate(new Date(`${date}T00:00:00`), child, schedules)
+      ),
+    [childList, date, schedules]
+  )
+
+  // 모든 자녀의 미배정 일정 계산
   const careGaps = useMemo(() =>
     childList.flatMap(child => detectCareGaps(child, schedules, date)),
     [childList, schedules, date]
@@ -44,7 +52,7 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
         <div className="mx-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-orange-800">
-              돌봄 공백 {careGaps.length}건
+              미배정 일정 {careGaps.length}건
             </span>
             <span className="text-xs text-orange-600">
               총 {Math.floor(totalCareGapMinutes / 60)}시간 {totalCareGapMinutes % 60}분
@@ -58,7 +66,7 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: child?.color }} />
                   <span>{child?.name}</span>
                   <span>{gap.start_time.slice(0, 5)} ~ {gap.end_time.slice(0, 5)}</span>
-                  <span className="text-orange-500">({gap.duration_minutes}분)</span>
+                  <span className="text-orange-500">(담당자 확인 필요)</span>
                 </div>
               )
             })}
@@ -67,7 +75,7 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
       )}
 
       {/* 일정이 없는 경우 */}
-      {schedules.length === 0 && careGaps.length === 0 && (
+      {displaySchedules.length === 0 && careGaps.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p>이 날은 등록된 일정이 없습니다.</p>
         </div>
@@ -90,20 +98,8 @@ export function DailyView({ schedules, childList, date, onScheduleClick }: Daily
           )
         })}
 
-        {/* 돌봄 공백 블록 */}
-        {careGaps.map((gap, i) => {
-          const child = childList.find(c => c.id === gap.child_id)
-          return (
-            <CareGapBlock
-              key={`gap-${i}`}
-              gap={gap}
-              childName={child?.name ?? ''}
-            />
-          )
-        })}
-
         {/* 일정 블록 */}
-        {schedules.map(schedule => (
+        {displaySchedules.map(schedule => (
           <ScheduleBlock
             key={schedule.id}
             schedule={schedule}
@@ -119,7 +115,7 @@ const ScheduleBlock = memo(function ScheduleBlock({
   schedule,
   onScheduleClick,
 }: {
-  schedule: ResolvedSchedule
+  schedule: DisplaySchedule
   onScheduleClick: (schedule: ResolvedSchedule) => void
 }) {
   const startMinutes = timeToMinutes(schedule.start_time)
@@ -128,16 +124,23 @@ const ScheduleBlock = memo(function ScheduleBlock({
   const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 32) // 최소 높이
 
   // 담당 부모 색상 또는 카테고리 색상
-  const bgColor = schedule.assigned_parent?.color ?? CATEGORY_COLORS[schedule.category] ?? '#6b7280'
+  const bgColor = schedule.isAutoCare
+    ? '#16a34a'
+    : schedule.assigned_parent?.color ?? CATEGORY_COLORS[schedule.category] ?? '#6b7280'
 
   return (
     <button
-      onClick={() => onScheduleClick(schedule)}
+      onClick={() => {
+        if (!schedule.isAutoCare) {
+          onScheduleClick(schedule)
+        }
+      }}
       className="absolute left-12 right-2 rounded-lg p-2 text-left transition-transform active:scale-[0.98] overflow-hidden"
+      disabled={schedule.isAutoCare}
       style={{
         top,
         height,
-        backgroundColor: bgColor + '20',
+        backgroundColor: schedule.isAutoCare ? '#dcfce7' : bgColor + '20',
         borderLeft: `3px solid ${bgColor}`,
       }}
     >
@@ -161,7 +164,12 @@ const ScheduleBlock = memo(function ScheduleBlock({
             </div>
           )}
         </div>
-        {schedule.assigned_parent && (
+        {schedule.isAutoCare && (
+          <Badge className="text-[10px] shrink-0 text-white border-0 bg-green-600">
+            돌봄
+          </Badge>
+        )}
+        {schedule.assigned_parent && !schedule.isAutoCare && (
           <Badge
             className="text-[10px] shrink-0 text-white border-0"
             style={{ backgroundColor: schedule.assigned_parent.color }}
@@ -169,7 +177,7 @@ const ScheduleBlock = memo(function ScheduleBlock({
             {schedule.assigned_parent.display_name}
           </Badge>
         )}
-        {!schedule.assigned_parent_id && (
+        {!schedule.assigned_parent_id && !schedule.isAutoCare && (
           <Badge variant="destructive" className="text-[10px] shrink-0">미배정</Badge>
         )}
       </div>
@@ -180,30 +188,5 @@ const ScheduleBlock = memo(function ScheduleBlock({
         </div>
       )}
     </button>
-  )
-})
-
-const CareGapBlock = memo(function CareGapBlock({ gap, childName }: { gap: CareGap; childName: string }) {
-  const startMinutes = timeToMinutes(gap.start_time)
-  const endMinutes = timeToMinutes(gap.end_time)
-  const top = ((startMinutes - TIMELINE_START) / 60) * HOUR_HEIGHT
-  const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 24)
-
-  return (
-    <div
-      className="absolute left-12 right-2 rounded-lg border border-orange-300 overflow-hidden pointer-events-none"
-      style={{
-        top,
-        height,
-        background: 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(251,146,60,0.15) 4px, rgba(251,146,60,0.15) 8px)',
-        backgroundColor: 'rgba(251,146,60,0.08)',
-      }}
-    >
-      <div className="px-2 py-1">
-        <p className="text-[10px] font-medium text-orange-600">
-          공백 · {childName} · {gap.duration_minutes}분
-        </p>
-      </div>
-    </div>
   )
 })

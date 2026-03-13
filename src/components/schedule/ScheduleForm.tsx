@@ -1,19 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { X, Check } from 'lucide-react'
-import { CATEGORY_LABELS, DAY_LABELS } from '@/lib/utils/schedule-helpers'
-import type { Schedule, Child, Profile, ScheduleCategory } from '@/types/database'
-import { format } from 'date-fns'
+import { CATEGORY_LABELS, DAY_LABELS, timeToMinutes } from '@/lib/utils/schedule-helpers'
+import type { Child, Profile, Schedule, ScheduleCategory } from '@/types/database'
+import { format, getDay, parseISO } from 'date-fns'
 
 interface ScheduleFormProps {
   familyId: string
   childList: Child[]
   parents: Profile[]
+  schedules: Schedule[]
   schedule?: Schedule | null // 수정 시
   defaultDate?: Date
   onClose: () => void
@@ -24,6 +25,7 @@ export function ScheduleForm({
   familyId,
   childList,
   parents,
+  schedules,
   schedule,
   defaultDate,
   onClose,
@@ -47,6 +49,97 @@ export function ScheduleForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) {
+        return
+      }
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        )
+      )
+
+      if (focusable.length === 0) {
+        event.preventDefault()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+      previousFocusRef.current?.focus()
+    }
+  }, [onClose])
+
+  const hasTimeRangeError = timeToMinutes(startTime) >= timeToMinutes(endTime)
+
+  const conflictsWithExistingSchedule = (() => {
+    if (!childId || hasTimeRangeError) {
+      return false
+    }
+
+    const compareStart = timeToMinutes(startTime)
+    const compareEnd = timeToMinutes(endTime)
+
+    return schedules.some(existing => {
+      if (schedule && existing.id === schedule.id) {
+        return false
+      }
+
+      if (existing.child_id !== childId) {
+        return false
+      }
+
+      const sameDay = isRecurring
+        ? existing.is_recurring
+          ? selectedDays.includes(existing.day_of_week ?? -1)
+          : selectedDays.includes(getDay(parseISO(existing.specific_date ?? '1970-01-01')))
+        : existing.is_recurring
+          ? existing.day_of_week === getDay(parseISO(specificDate))
+          : existing.specific_date === specificDate
+
+      if (!sameDay) {
+        return false
+      }
+
+      const existingStart = timeToMinutes(existing.start_time)
+      const existingEnd = timeToMinutes(existing.end_time)
+
+      return compareStart < existingEnd && compareEnd > existingStart
+    })
+  })()
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev =>
@@ -59,8 +152,16 @@ export function ScheduleForm({
       setError('자녀와 제목을 입력해주세요.')
       return
     }
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      setError('시작 시간은 종료 시간보다 빨라야 합니다.')
+      return
+    }
     if (isRecurring && selectedDays.length === 0) {
       setError('반복 요일을 선택해주세요.')
+      return
+    }
+    if (conflictsWithExistingSchedule) {
+      setError('같은 자녀의 다른 일정과 시간이 겹칩니다.')
       return
     }
     setLoading(true)
@@ -142,11 +243,18 @@ export function ScheduleForm({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center">
-      <div className="w-full max-w-lg bg-background rounded-t-2xl max-h-[85dvh] overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-form-title"
+        className="w-full max-w-lg bg-background rounded-t-2xl max-h-[85dvh] overflow-y-auto"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="sticky top-0 bg-background border-b px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-lg font-bold">{schedule ? '일정 수정' : '일정 추가'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <h2 id="schedule-form-title" className="text-lg font-bold">{schedule ? '일정 수정' : '일정 추가'}</h2>
+          <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -212,6 +320,9 @@ export function ScheduleForm({
               <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} step={300} />
             </div>
           </div>
+          {hasTimeRangeError && (
+            <p className="text-sm text-destructive">시작 시간은 종료 시간보다 빨라야 합니다.</p>
+          )}
 
           {/* 반복/일회성 */}
           <div className="space-y-1.5">
@@ -312,7 +423,10 @@ export function ScheduleForm({
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {(conflictsWithExistingSchedule && !error) && (
+            <p className="text-sm text-destructive">같은 자녀의 다른 일정과 시간이 겹칩니다.</p>
+          )}
+          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
           <div className="pb-4">
             <Button onClick={handleSave} disabled={loading} className="w-full h-12">
