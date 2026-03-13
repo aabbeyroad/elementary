@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense, useCallback } from 'react'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ScheduleForm } from '@/components/schedule/ScheduleForm'
 import { useSchedules } from '@/hooks/useSchedules'
 import { resolveSchedulesForDate, CATEGORY_COLORS } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import Link from 'next/link'
+
+const ScheduleForm = lazy(() =>
+  import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
+)
 
 interface WeeklyViewPageProps {
   userId: string
@@ -19,18 +22,16 @@ interface WeeklyViewPageProps {
 
 export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProps) {
   const [weekStart, setWeekStart] = useState(() =>
-    startOfWeek(new Date(), { weekStartsOn: 1 }) // 월요일 시작
+    startOfWeek(new Date(), { weekStartsOn: 1 })
   )
   const [showForm, setShowForm] = useState(false)
   const { schedules, overrides, children, parents, loading, refetch } = useSchedules(familyId)
 
-  // 이번 주의 7일
   const weekDays = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   )
 
-  // 각 날짜의 일정과 돌봄 공백 계산
   const weekData = useMemo(() =>
     weekDays.map(day => {
       const resolved = resolveSchedulesForDate(day, schedules, overrides, children, parents)
@@ -41,9 +42,9 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
     [weekDays, schedules, overrides, children, parents]
   )
 
-  const goToPrevWeek = () => setWeekStart(prev => addDays(prev, -7))
-  const goToNextWeek = () => setWeekStart(prev => addDays(prev, 7))
-  const goToThisWeek = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const goToPrevWeek = useCallback(() => setWeekStart(prev => addDays(prev, -7)), [])
+  const goToNextWeek = useCallback(() => setWeekStart(prev => addDays(prev, 7)), [])
+  const goToThisWeek = useCallback(() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 })), [])
 
   const isThisWeek = isSameDay(weekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))
 
@@ -79,17 +80,15 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
 
       <div className="p-2">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
+          <WeeklySkeleton />
         ) : (
           <div className="grid grid-cols-7 gap-1">
-            {/* 요일 헤더 */}
             {['월', '화', '수', '목', '금', '토', '일'].map((day, i) => (
               <div key={day} className={`text-center text-xs font-medium py-1 ${i === 5 ? 'text-blue-500' : i === 6 ? 'text-red-500' : 'text-muted-foreground'}`}>
                 {day}
               </div>
             ))}
 
-            {/* 각 날짜 컬럼 */}
             {weekData.map(({ day, schedules: daySchedules, gaps }) => {
               const isToday = isSameDay(day, new Date())
               return (
@@ -104,7 +103,6 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
                     {format(day, 'd')}
                   </p>
 
-                  {/* 일정 미니 블록 */}
                   {daySchedules.slice(0, 4).map(s => (
                     <div
                       key={s.id}
@@ -120,7 +118,6 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
                     <p className="text-[9px] text-muted-foreground text-center">+{daySchedules.length - 4}</p>
                   )}
 
-                  {/* 돌봄 공백 표시 */}
                   {gaps.length > 0 && (
                     <div className="text-[9px] text-orange-600 bg-orange-50 px-1 py-0.5 rounded text-center font-medium">
                       공백 {gaps.length}
@@ -134,14 +131,50 @@ export function WeeklyViewPage({ userId: _userId, familyId }: WeeklyViewPageProp
       </div>
 
       {showForm && children.length > 0 && (
-        <ScheduleForm
-          familyId={familyId}
-          childList={children}
-          parents={parents}
-          onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); refetch() }}
-        />
+        <Suspense fallback={<FormLoadingOverlay />}>
+          <ScheduleForm
+            familyId={familyId}
+            childList={children}
+            parents={parents}
+            onClose={() => setShowForm(false)}
+            onSaved={() => { setShowForm(false); refetch() }}
+          />
+        </Suspense>
       )}
+    </div>
+  )
+}
+
+function WeeklySkeleton() {
+  return (
+    <div className="grid grid-cols-7 gap-1 animate-pulse">
+      {Array.from({ length: 7 }, (_, i) => (
+        <div key={i} className="text-center text-xs font-medium py-1 text-muted-foreground">
+          {['월', '화', '수', '목', '금', '토', '일'][i]}
+        </div>
+      ))}
+      {Array.from({ length: 7 }, (_, i) => (
+        <div key={`cell-${i}`} className="rounded-lg border border-transparent p-1.5 min-h-[120px] space-y-1">
+          <div className="h-4 w-4 bg-muted rounded mx-auto" />
+          <div className="h-3 bg-muted rounded" />
+          <div className="h-3 bg-muted rounded" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FormLoadingOverlay() {
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center">
+      <div className="w-full max-w-lg bg-background rounded-t-2xl p-6 animate-pulse">
+        <div className="h-6 w-32 bg-muted rounded mb-4" />
+        <div className="space-y-3">
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+        </div>
+      </div>
     </div>
   )
 }

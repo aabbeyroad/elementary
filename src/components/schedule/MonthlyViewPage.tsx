@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense, useCallback } from 'react'
 import {
   format,
   startOfMonth,
@@ -17,11 +17,14 @@ import { ko } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ScheduleForm } from '@/components/schedule/ScheduleForm'
 import { useSchedules } from '@/hooks/useSchedules'
 import { resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
 import { detectCareGaps } from '@/lib/utils/care-gaps'
 import Link from 'next/link'
+
+const ScheduleForm = lazy(() =>
+  import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
+)
 
 interface MonthlyViewPageProps {
   userId: string
@@ -49,29 +52,33 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
     return days
   }, [currentMonth])
 
-  // 각 날짜의 일정 개수와 돌봄 공백 유무
+  // 경량화된 월간 데이터 계산: 일정 개수와 색상 점만 (공백 감지는 현재월에만)
   const dayData = useMemo(() => {
     const data = new Map<string, { count: number; hasGap: boolean; childColors: string[] }>()
     for (const day of calendarDays) {
+      const isCurrentMonthDay = isSameMonth(day, currentMonth)
       const dateStr = format(day, 'yyyy-MM-dd')
       const resolved = resolveSchedulesForDate(day, schedules, overrides, children, parents)
-      const gaps = children.flatMap(child => detectCareGaps(child, resolved, dateStr))
 
-      // 자녀별 색상 점 (중복 제거)
+      // 돌봄 공백 감지는 현재 월의 날짜에만 적용 (이전/다음 달은 스킵 → 연산 절약)
+      const hasGap = isCurrentMonthDay && resolved.length > 0
+        ? children.some(child => detectCareGaps(child, resolved, dateStr).length > 0)
+        : false
+
       const childColors = [...new Set(resolved.map(s => s.child?.color).filter(Boolean))] as string[]
 
       data.set(dateStr, {
         count: resolved.length,
-        hasGap: gaps.length > 0,
-        childColors: childColors.slice(0, 3), // 최대 3개 점
+        hasGap,
+        childColors: childColors.slice(0, 3),
       })
     }
     return data
-  }, [calendarDays, schedules, overrides, children, parents])
+  }, [calendarDays, currentMonth, schedules, overrides, children, parents])
 
-  const goToPrevMonth = () => setCurrentMonth(prev => subMonths(prev, 1))
-  const goToNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1))
-  const goToThisMonth = () => setCurrentMonth(new Date())
+  const goToPrevMonth = useCallback(() => setCurrentMonth(prev => subMonths(prev, 1)), [])
+  const goToNextMonth = useCallback(() => setCurrentMonth(prev => addMonths(prev, 1)), [])
+  const goToThisMonth = useCallback(() => setCurrentMonth(new Date()), [])
   const isThisMonth = isSameMonth(currentMonth, new Date())
 
   return (
@@ -106,29 +113,27 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
 
       <div className="p-3">
         {loading ? (
-          <div className="text-center py-8 text-muted-foreground">불러오는 중...</div>
+          <MonthlySkeleton />
         ) : (
           <div className="grid grid-cols-7 gap-0.5">
-            {/* 요일 헤더 */}
             {['월', '화', '수', '목', '금', '토', '일'].map((day, i) => (
               <div key={day} className={`text-center text-xs font-medium py-2 ${i === 5 ? 'text-blue-500' : i === 6 ? 'text-red-500' : 'text-muted-foreground'}`}>
                 {day}
               </div>
             ))}
 
-            {/* 날짜 셀 */}
             {calendarDays.map(day => {
               const dateStr = format(day, 'yyyy-MM-dd')
               const data = dayData.get(dateStr)
               const isToday = isSameDay(day, new Date())
-              const isCurrentMonth = isSameMonth(day, currentMonth)
+              const isCurrentMonthDay = isSameMonth(day, currentMonth)
 
               return (
                 <Link
                   key={dateStr}
                   href="/dashboard"
                   className={`relative rounded-md p-1 min-h-[52px] flex flex-col items-center transition-colors hover:bg-accent/50 ${
-                    !isCurrentMonth ? 'opacity-30' : ''
+                    !isCurrentMonthDay ? 'opacity-30' : ''
                   }`}
                 >
                   <span className={`text-sm w-7 h-7 flex items-center justify-center rounded-full ${
@@ -137,7 +142,6 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
                     {format(day, 'd')}
                   </span>
 
-                  {/* 일정 점 표시 */}
                   {data && data.childColors.length > 0 && (
                     <div className="flex gap-0.5 mt-0.5">
                       {data.childColors.map((color, i) => (
@@ -146,12 +150,10 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
                     </div>
                   )}
 
-                  {/* 돌봄 공백 표시 */}
                   {data?.hasGap && (
                     <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-0.5" />
                   )}
 
-                  {/* 일정 개수 */}
                   {data && data.count > 0 && (
                     <span className="text-[9px] text-muted-foreground">{data.count}</span>
                   )}
@@ -163,14 +165,46 @@ export function MonthlyViewPage({ userId: _userId, familyId }: MonthlyViewPagePr
       </div>
 
       {showForm && children.length > 0 && (
-        <ScheduleForm
-          familyId={familyId}
-          childList={children}
-          parents={parents}
-          onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); refetch() }}
-        />
+        <Suspense fallback={<FormLoadingOverlay />}>
+          <ScheduleForm
+            familyId={familyId}
+            childList={children}
+            parents={parents}
+            onClose={() => setShowForm(false)}
+            onSaved={() => { setShowForm(false); refetch() }}
+          />
+        </Suspense>
       )}
+    </div>
+  )
+}
+
+function MonthlySkeleton() {
+  return (
+    <div className="grid grid-cols-7 gap-0.5 animate-pulse">
+      {['월', '화', '수', '목', '금', '토', '일'].map((day) => (
+        <div key={day} className="text-center text-xs font-medium py-2 text-muted-foreground">{day}</div>
+      ))}
+      {Array.from({ length: 35 }, (_, i) => (
+        <div key={i} className="rounded-md p-1 min-h-[52px] flex flex-col items-center">
+          <div className="w-7 h-7 bg-muted rounded-full" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FormLoadingOverlay() {
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center">
+      <div className="w-full max-w-lg bg-background rounded-t-2xl p-6 animate-pulse">
+        <div className="h-6 w-32 bg-muted rounded mb-4" />
+        <div className="space-y-3">
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+        </div>
+      </div>
     </div>
   )
 }

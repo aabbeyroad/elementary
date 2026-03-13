@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -10,7 +11,6 @@ const navItems = [
     label: '일정',
     href: '/dashboard',
     icon: CalendarDays,
-    // /dashboard, /schedule 경로에서 활성화
     isActive: (path: string) => path.startsWith('/dashboard') || path.startsWith('/schedule'),
   },
   {
@@ -25,9 +25,9 @@ const navItems = [
     icon: Settings,
     isActive: (path: string) => path.startsWith('/settings') || path.startsWith('/children'),
   },
-]
+] as const
 
-export function BottomNav() {
+export const BottomNav = memo(function BottomNav() {
   const pathname = usePathname()
 
   return (
@@ -39,6 +39,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               className={cn(
                 'flex flex-col items-center gap-1 px-3 py-2 text-xs transition-colors',
                 active
@@ -54,4 +55,4 @@ export function BottomNav() {
       </div>
     </nav>
   )
-}
+})
