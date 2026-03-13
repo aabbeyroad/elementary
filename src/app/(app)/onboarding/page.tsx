@@ -78,9 +78,11 @@ export default function OnboardingPage() {
       // 초대코드로 가족 찾기 (RLS 우회를 위해 rpc 사용)
       // invite_code는 MD5 hex(소문자)이므로 toLowerCase() 변환
       const normalizedCode = inviteCode.trim().toLowerCase()
-      const { data: family, error: familyError } = await supabase
+      const { data: familyData, error: familyError } = await supabase
         .rpc('find_family_by_invite_code', { code: normalizedCode })
 
+      // RPC returns TABLE type → array
+      const family = Array.isArray(familyData) ? familyData[0] : familyData
       if (familyError || !family) {
         setError('유효하지 않은 초대코드입니다. 코드를 다시 확인해주세요.')
         return
