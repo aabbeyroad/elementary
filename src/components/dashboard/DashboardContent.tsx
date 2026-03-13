@@ -120,6 +120,7 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
           <DailyView
             schedules={resolvedSchedules}
             childList={children}
+            parents={parents}
             date={format(selectedDate, 'yyyy-MM-dd')}
             onScheduleClick={handleScheduleClick}
           />
