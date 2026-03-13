@@ -1,0 +1,22 @@
+{
+  "name": "돌봄돌봄",
+  "short_name": "돌봄돌봄",
+  "description": "맞벌이 부모를 위한 자녀 돌봄 일정 관리",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
