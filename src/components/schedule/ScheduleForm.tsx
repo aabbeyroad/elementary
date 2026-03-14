@@ -31,9 +31,23 @@ export function ScheduleForm({
   onClose,
   onSaved,
 }: ScheduleFormProps) {
+  const initialOtherParts = schedule?.category === 'other'
+    ? schedule.title.split(' · ', 2)
+    : []
   const [childId, setChildId] = useState(schedule?.child_id ?? childList[0]?.id ?? '')
-  const [title, setTitle] = useState(schedule?.title ?? '')
+  const [title, setTitle] = useState(
+    schedule?.category === 'other'
+      ? initialOtherParts.length > 1
+        ? initialOtherParts[1]
+        : ''
+      : schedule?.title ?? ''
+  )
   const [category, setCategory] = useState<ScheduleCategory>(schedule?.category as ScheduleCategory ?? 'academy')
+  const [otherCategoryLabel, setOtherCategoryLabel] = useState(
+    schedule?.category === 'other'
+      ? initialOtherParts[0] ?? schedule?.title ?? ''
+      : ''
+  )
   const [location, setLocation] = useState(schedule?.location ?? '')
   const [startTime, setStartTime] = useState(schedule?.start_time?.slice(0, 5) ?? '14:00')
   const [endTime, setEndTime] = useState(schedule?.end_time?.slice(0, 5) ?? '15:00')
@@ -148,8 +162,18 @@ export function ScheduleForm({
   }
 
   const handleSave = async () => {
-    if (!childId || !title.trim()) {
+    const normalizedOtherCategory = otherCategoryLabel.trim()
+    const normalizedTitle = title.trim()
+    const resolvedTitle = category === 'other'
+      ? [normalizedOtherCategory, normalizedTitle].filter(Boolean).join(' · ')
+      : normalizedTitle
+
+    if (!childId || !resolvedTitle) {
       setError('자녀와 제목을 입력해주세요.')
+      return
+    }
+    if (category === 'other' && !normalizedOtherCategory) {
+      setError('기타 카테고리 이름을 입력해주세요.')
       return
     }
     if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
@@ -178,7 +202,7 @@ export function ScheduleForm({
             .from('schedules')
             .update({
               child_id: childId,
-              title: title.trim(),
+              title: resolvedTitle,
               category,
               location: location.trim() || null,
               start_time: startTime,
@@ -198,7 +222,7 @@ export function ScheduleForm({
           const inserts = selectedDays.map(day => ({
             family_id: familyId,
             child_id: childId,
-            title: title.trim(),
+            title: resolvedTitle,
             category,
             location: location.trim() || null,
             start_time: startTime,
@@ -218,7 +242,7 @@ export function ScheduleForm({
         const data = {
           family_id: familyId,
           child_id: childId,
-          title: title.trim(),
+          title: resolvedTitle,
           category,
           location: location.trim() || null,
           start_time: startTime,
@@ -319,6 +343,20 @@ export function ScheduleForm({
               ))}
             </div>
           </div>
+
+          {category === 'other' && (
+            <div className="space-y-1.5">
+              <Label>기타 카테고리 이름 *</Label>
+              <Input
+                value={otherCategoryLabel}
+                onChange={(e) => setOtherCategoryLabel(e.target.value)}
+                placeholder="예: 병원, 체험활동, 친구 약속"
+              />
+              <p className="text-xs text-muted-foreground">
+                입력한 값은 일정 제목 앞에 함께 저장됩니다.
+              </p>
+            </div>
+          )}
 
           {/* 시간 */}
           <div className="grid grid-cols-2 gap-3">

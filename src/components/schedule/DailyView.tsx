@@ -27,6 +27,7 @@ const TIMELINE_START = 7 * 60
 const TIMELINE_END = 21 * 60
 const HOUR_HEIGHT = 64
 const MIN_BLOCK_HEIGHT = 14
+const MINOR_INTERVAL = 10
 
 /**
  * 3컬럼 일간 타임라인 뷰
@@ -47,7 +48,10 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
     [childList, schedules, date]
   )
 
-  const hours = Array.from({ length: 14 }, (_, i) => i + 7)
+  const timeMarkers = Array.from(
+    { length: Math.floor((TIMELINE_END - TIMELINE_START) / MINOR_INTERVAL) + 1 },
+    (_, index) => TIMELINE_START + index * MINOR_INTERVAL
+  )
   const totalCareGapMinutes = careGaps.reduce((sum, gap) => sum + gap.duration_minutes, 0)
 
   // 부모 2명을 좌/우로 배치 (등록 순서)
@@ -131,15 +135,16 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
           )}
 
           <div className="relative" style={{ height: `${timelineHeight}px` }}>
-        {hours.map(hour => {
-          const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
+        {timeMarkers.map(marker => {
+          const top = ((marker - TIMELINE_START) / 60) * HOUR_HEIGHT
+          const isHour = marker % 60 === 0
           return (
-            <div key={hour} className="absolute left-0 right-0" style={{ top }}>
+            <div key={marker} className="absolute left-0 right-0" style={{ top }}>
               <div className="flex items-start">
-                <span className="text-xs text-muted-foreground w-10 -mt-2 shrink-0">
-                  {hour.toString().padStart(2, '0')}시
+                <span className="w-10 shrink-0 text-xs text-muted-foreground -mt-2">
+                  {isHour ? `${String(marker / 60).padStart(2, '0')}시` : ''}
                 </span>
-                <div className="flex-1 border-t border-dashed border-muted" />
+                <div className={isHour ? 'flex-1 border-t border-dashed border-muted' : 'flex-1 border-t border-dashed border-border/35'} />
               </div>
             </div>
           )

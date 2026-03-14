@@ -31,6 +31,7 @@ const TIMELINE_START = 7 * 60
 const TIMELINE_END = 21 * 60
 const HOUR_HEIGHT = 52
 const MIN_BLOCK_HEIGHT = 18
+const MINOR_INTERVAL = 10
 
 export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const [weekStart, setWeekStart] = useState(() =>
@@ -68,7 +69,10 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
   const goToThisWeek = useCallback(() => startTransition(() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))), [])
 
   const isThisWeek = isSameDay(weekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))
-  const hours = Array.from({ length: (TIMELINE_END - TIMELINE_START) / 60 + 1 }, (_, i) => i + 7)
+  const timeMarkers = Array.from(
+    { length: Math.floor((TIMELINE_END - TIMELINE_START) / MINOR_INTERVAL) + 1 },
+    (_, index) => TIMELINE_START + index * MINOR_INTERVAL
+  )
   const timelineHeight = ((TIMELINE_END - TIMELINE_START) / 60) * HOUR_HEIGHT
 
   return (
@@ -126,12 +130,13 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
 
               <div className="relative grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-px">
                 <div className="relative" style={{ height: `${timelineHeight}px` }}>
-                  {hours.slice(0, -1).map(hour => {
-                    const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
+                  {timeMarkers.map(marker => {
+                    const top = ((marker - TIMELINE_START) / 60) * HOUR_HEIGHT
+                    const isHour = marker % 60 === 0
                     return (
-                      <div key={`hour-${hour}`} className="absolute left-0 right-0" style={{ top }}>
+                      <div key={`hour-${marker}`} className="absolute left-0 right-0" style={{ top }}>
                         <span className="block -translate-y-2 text-right text-[10px] font-medium text-muted-foreground">
-                          {hour}
+                          {isHour ? marker / 60 : ''}
                         </span>
                       </div>
                     )
@@ -149,11 +154,12 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                       }`}
                       style={{ height: `${timelineHeight}px` }}
                     >
-                      {hours.slice(0, -1).map(hour => {
-                        const top = ((hour * 60 - TIMELINE_START) / 60) * HOUR_HEIGHT
+                      {timeMarkers.map(marker => {
+                        const top = ((marker - TIMELINE_START) / 60) * HOUR_HEIGHT
+                        const isHour = marker % 60 === 0
                         return (
-                          <div key={`${day.toISOString()}-${hour}`} className="absolute inset-x-0" style={{ top }}>
-                            <div className="border-t border-dashed border-border/70" />
+                          <div key={`${day.toISOString()}-${marker}`} className="absolute inset-x-0" style={{ top }}>
+                            <div className={isHour ? 'border-t border-dashed border-border/70' : 'border-t border-dashed border-border/35'} />
                           </div>
                         )
                       })}
