@@ -362,11 +362,11 @@ export function ScheduleForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>시작 시간</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} step={300} />
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} step={600} />
             </div>
             <div className="space-y-1.5">
               <Label>종료 시간</Label>
-              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} step={300} />
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} step={600} />
             </div>
           </div>
           {hasTimeRangeError && (

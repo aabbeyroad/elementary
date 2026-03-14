@@ -159,7 +159,7 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
                         const isHour = marker % 60 === 0
                         return (
                           <div key={`${day.toISOString()}-${marker}`} className="absolute inset-x-0" style={{ top }}>
-                            <div className={isHour ? 'border-t border-dashed border-border/70' : 'border-t border-dashed border-border/35'} />
+                            <div className={isHour ? 'border-t border-border/65' : 'border-t border-dashed border-muted'} />
                           </div>
                         )
                       })}

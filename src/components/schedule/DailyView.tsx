@@ -144,7 +144,7 @@ export function DailyView({ schedules, childList, parents, date, onScheduleClick
                 <span className="w-10 shrink-0 text-xs text-muted-foreground -mt-2">
                   {isHour ? `${String(marker / 60).padStart(2, '0')}시` : ''}
                 </span>
-                <div className={isHour ? 'flex-1 border-t border-dashed border-muted' : 'flex-1 border-t border-dashed border-border/35'} />
+                <div className={isHour ? 'flex-1 border-t border-border/65' : 'flex-1 border-t border-dashed border-muted'} />
               </div>
             </div>
           )
