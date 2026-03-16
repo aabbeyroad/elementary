@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { X, Check } from 'lucide-react'
-import { CATEGORY_LABELS, DAY_LABELS, timeToMinutes } from '@/lib/utils/schedule-helpers'
+import { DAY_LABELS, timeToMinutes } from '@/lib/utils/schedule-helpers'
 import type { Child, Profile, Schedule, ScheduleCategory } from '@/types/database'
 import { format, getDay, parseISO } from 'date-fns'
 
@@ -21,6 +21,69 @@ interface ScheduleFormProps {
   onSaved: (savedSchedules?: Schedule[]) => void
 }
 
+type TravelMode = 'self' | 'parent' | 'helper' | 'academy_shuttle' | 'other'
+
+type ScheduleMeta = {
+  otherCategoryLabel?: string
+  goMode?: TravelMode
+  goDetail?: string
+  returnMode?: TravelMode
+  returnDetail?: string
+  supplyList?: string
+}
+
+const SCHEDULE_META_PREFIX = '__planner_meta__'
+const CATEGORY_OPTIONS: Array<{ value: ScheduleCategory; label: string }> = [
+  { value: 'school', label: '학교' },
+  { value: 'academy', label: '학원' },
+  { value: 'other', label: '기타' },
+]
+const TRAVEL_OPTIONS: Array<{ value: TravelMode; label: string }> = [
+  { value: 'self', label: '스스로' },
+  { value: 'parent', label: '부모' },
+  { value: 'helper', label: '도우미' },
+  { value: 'academy_shuttle', label: '학원차' },
+  { value: 'other', label: '기타' },
+]
+
+function parseScheduleNotes(notes: string | null) {
+  const raw = notes?.trim()
+
+  if (!raw?.startsWith(SCHEDULE_META_PREFIX)) {
+    return { meta: {} as ScheduleMeta, userNotes: notes ?? '' }
+  }
+
+  const [firstLine, ...rest] = raw.split('\n')
+  try {
+    const meta = JSON.parse(firstLine.slice(SCHEDULE_META_PREFIX.length)) as ScheduleMeta
+    return {
+      meta,
+      userNotes: rest.join('\n').trim(),
+    }
+  } catch {
+    return { meta: {} as ScheduleMeta, userNotes: notes ?? '' }
+  }
+}
+
+function buildScheduleNotes(meta: ScheduleMeta, userNotes: string) {
+  const normalizedNotes = userNotes.trim()
+  const normalizedMeta = Object.fromEntries(
+    Object.entries(meta).filter(([, value]) => typeof value === 'string' ? value.trim() !== '' : value != null)
+  )
+
+  if (Object.keys(normalizedMeta).length === 0) {
+    return normalizedNotes || null
+  }
+
+  return [`${SCHEDULE_META_PREFIX}${JSON.stringify(normalizedMeta)}`, normalizedNotes]
+    .filter(Boolean)
+    .join('\n')
+}
+
+function requiresTravelDetail(mode: TravelMode) {
+  return mode === 'helper' || mode === 'academy_shuttle' || mode === 'other'
+}
+
 export function ScheduleForm({
   familyId,
   childList,
@@ -31,8 +94,11 @@ export function ScheduleForm({
   onClose,
   onSaved,
 }: ScheduleFormProps) {
+  const parsedNotes = parseScheduleNotes(schedule?.notes ?? null)
   const initialOtherParts = schedule?.category === 'other'
-    ? schedule.title.split(' · ', 2)
+    ? (parsedNotes.meta.otherCategoryLabel
+      ? [parsedNotes.meta.otherCategoryLabel, schedule.title.replace(`${parsedNotes.meta.otherCategoryLabel} · `, '')]
+      : schedule.title.split(' · ', 2))
     : []
   const [childId, setChildId] = useState(schedule?.child_id ?? childList[0]?.id ?? '')
   const [title, setTitle] = useState(
@@ -45,7 +111,7 @@ export function ScheduleForm({
   const [category, setCategory] = useState<ScheduleCategory>(schedule?.category as ScheduleCategory ?? 'academy')
   const [otherCategoryLabel, setOtherCategoryLabel] = useState(
     schedule?.category === 'other'
-      ? initialOtherParts[0] ?? schedule?.title ?? ''
+      ? parsedNotes.meta.otherCategoryLabel ?? initialOtherParts[0] ?? schedule?.title ?? ''
       : ''
   )
   const [location, setLocation] = useState(schedule?.location ?? '')
@@ -59,7 +125,12 @@ export function ScheduleForm({
     schedule?.specific_date ?? (defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   )
   const [assignedParentId, setAssignedParentId] = useState(schedule?.assigned_parent_id ?? '')
-  const [notes, setNotes] = useState(schedule?.notes ?? '')
+  const [goMode, setGoMode] = useState<TravelMode>((parsedNotes.meta.goMode as TravelMode | undefined) ?? 'self')
+  const [goDetail, setGoDetail] = useState(parsedNotes.meta.goDetail ?? '')
+  const [returnMode, setReturnMode] = useState<TravelMode>((parsedNotes.meta.returnMode as TravelMode | undefined) ?? 'self')
+  const [returnDetail, setReturnDetail] = useState(parsedNotes.meta.returnDetail ?? '')
+  const [supplyList, setSupplyList] = useState(parsedNotes.meta.supplyList ?? '')
+  const [notes, setNotes] = useState(parsedNotes.userNotes)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
@@ -167,6 +238,14 @@ export function ScheduleForm({
     const resolvedTitle = category === 'other'
       ? [normalizedOtherCategory, normalizedTitle].filter(Boolean).join(' · ')
       : normalizedTitle
+    const resolvedNotes = buildScheduleNotes({
+      otherCategoryLabel: category === 'other' ? normalizedOtherCategory : '',
+      goMode,
+      goDetail: requiresTravelDetail(goMode) ? goDetail.trim() : '',
+      returnMode,
+      returnDetail: requiresTravelDetail(returnMode) ? returnDetail.trim() : '',
+      supplyList: supplyList.trim(),
+    }, notes)
 
     if (!childId || !resolvedTitle) {
       setError('자녀와 제목을 입력해주세요.')
@@ -211,7 +290,7 @@ export function ScheduleForm({
               is_recurring: true,
               specific_date: null,
               assigned_parent_id: assignedParentId || null,
-              notes: notes.trim() || null,
+              notes: resolvedNotes,
             })
             .select()
             .eq('id', schedule.id)
@@ -231,7 +310,7 @@ export function ScheduleForm({
             is_recurring: true,
             specific_date: null,
             assigned_parent_id: assignedParentId || null,
-            notes: notes.trim() || null,
+            notes: resolvedNotes,
           }))
           const { data, error: err } = await supabase.from('schedules').insert(inserts).select()
           if (err) throw err
@@ -251,7 +330,7 @@ export function ScheduleForm({
           is_recurring: false,
           specific_date: specificDate,
           assigned_parent_id: assignedParentId || null,
-          notes: notes.trim() || null,
+          notes: resolvedNotes,
         }
 
         if (schedule) {
@@ -327,13 +406,13 @@ export function ScheduleForm({
           <div className="space-y-1.5">
             <Label>카테고리</Label>
             <div className="flex gap-2 flex-wrap">
-              {Object.entries(CATEGORY_LABELS).filter(([k]) => k !== 'custom').map(([key, label]) => (
+              {CATEGORY_OPTIONS.map(({ value, label }) => (
                 <button
-                  key={key}
+                  key={value}
                   type="button"
-                  onClick={() => setCategory(key as ScheduleCategory)}
+                  onClick={() => setCategory(value)}
                   className={`px-3 py-1.5 rounded-full text-sm transition-all ${
-                    category === key
+                    category === value
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   }`}
@@ -455,6 +534,31 @@ export function ScheduleForm({
             </div>
           </div>
 
+          <TravelSection
+            label="갈 때"
+            selectedMode={goMode}
+            onSelectMode={setGoMode}
+            detail={goDetail}
+            onChangeDetail={setGoDetail}
+          />
+
+          <TravelSection
+            label="올 때"
+            selectedMode={returnMode}
+            onSelectMode={setReturnMode}
+            detail={returnDetail}
+            onChangeDetail={setReturnDetail}
+          />
+
+          <div className="space-y-1.5">
+            <Label>준비물</Label>
+            <Input
+              value={supplyList}
+              onChange={(e) => setSupplyList(e.target.value)}
+              placeholder="예: 체육복, 물통, 실내화"
+            />
+          </div>
+
           {/* 장소 */}
           <div className="space-y-1.5">
             <Label>장소 (선택)</Label>
@@ -485,6 +589,49 @@ export function ScheduleForm({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TravelSection({
+  label,
+  selectedMode,
+  onSelectMode,
+  detail,
+  onChangeDetail,
+}: {
+  label: string
+  selectedMode: TravelMode
+  onSelectMode: (mode: TravelMode) => void
+  detail: string
+  onChangeDetail: (value: string) => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div className="flex gap-2 flex-wrap">
+        {TRAVEL_OPTIONS.map(option => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelectMode(option.value)}
+            className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+              selectedMode === option.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {requiresTravelDetail(selectedMode) && (
+        <Input
+          value={detail}
+          onChange={(e) => onChangeDetail(e.target.value)}
+          placeholder="연락처 등"
+        />
+      )}
     </div>
   )
 }
