@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useModalDialog } from '@/hooks/useModalDialog'
-import { Plus, X, Check, Square, CheckSquare, Trash2 } from 'lucide-react'
+import { Plus, X, Check, Square, CheckSquare, Trash2, PencilLine } from 'lucide-react'
 import type { Supply, Child, Schedule } from '@/types/database'
 import { PageHeader } from '@/components/ui/page-header'
 import { Notice } from '@/components/ui/notice'
@@ -24,6 +24,7 @@ export default function SuppliesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingSupply, setEditingSupply] = useState<Supply | null>(null)
   const [pendingDeleteSupply, setPendingDeleteSupply] = useState<Supply | null>(null)
   const [deletingSupplyId, setDeletingSupplyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
@@ -176,6 +177,17 @@ export default function SuppliesPage() {
                           </div>
                           <button
                             type="button"
+                            onClick={() => {
+                              setEditingSupply(supply)
+                              setShowForm(true)
+                            }}
+                            className="shrink-0"
+                            aria-label={`${supply.title} 수정`}
+                          >
+                            <PencilLine className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setPendingDeleteSupply(supply)}
                             className="shrink-0"
                             aria-label={`${supply.title} 삭제`}
@@ -197,8 +209,16 @@ export default function SuppliesPage() {
           familyId={familyId}
           childList={children}
           schedules={schedules}
-          onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); fetchData() }}
+          supply={editingSupply}
+          onClose={() => {
+            setShowForm(false)
+            setEditingSupply(null)
+          }}
+          onSaved={() => {
+            setShowForm(false)
+            setEditingSupply(null)
+            fetchData()
+          }}
         />
       )}
 
@@ -225,20 +245,22 @@ function SupplyForm({
   familyId,
   childList,
   schedules,
+  supply,
   onClose,
   onSaved,
 }: {
   familyId: string
   childList: Child[]
   schedules: Schedule[]
+  supply?: Supply | null
   onClose: () => void
   onSaved: () => void
 }) {
-  const [childId, setChildId] = useState(childList[0]?.id ?? '')
-  const [title, setTitle] = useState('')
-  const [targetDate, setTargetDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [selectedScheduleId, setSelectedScheduleId] = useState('')
-  const [notes, setNotes] = useState('')
+  const [childId, setChildId] = useState(supply?.child_id ?? childList[0]?.id ?? '')
+  const [title, setTitle] = useState(supply?.title ?? '')
+  const [targetDate, setTargetDate] = useState(supply?.target_date ?? format(new Date(), 'yyyy-MM-dd'))
+  const [selectedScheduleId, setSelectedScheduleId] = useState(supply?.schedule_id ?? '')
+  const [notes, setNotes] = useState(supply?.notes ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
@@ -268,15 +290,22 @@ function SupplyForm({
     setError('')
 
     try {
-      const { error: err } = await supabase.from('supplies').insert({
+      const payload = {
         family_id: familyId,
         child_id: childId,
         schedule_id: selectedScheduleId || null,
         title: title.trim(),
         target_date: targetDate || null,
         notes: notes.trim() || null,
-      })
-      if (err) throw err
+      }
+
+      if (supply) {
+        const { error: err } = await supabase.from('supplies').update(payload).eq('id', supply.id)
+        if (err) throw err
+      } else {
+        const { error: err } = await supabase.from('supplies').insert(payload)
+        if (err) throw err
+      }
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
@@ -296,7 +325,7 @@ function SupplyForm({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-6 py-4">
-          <h2 id="supply-form-title" className="text-lg font-bold">준비물 추가</h2>
+          <h2 id="supply-form-title" className="text-lg font-bold">{supply ? '준비물 수정' : '준비물 추가'}</h2>
           <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
 
@@ -367,7 +396,7 @@ function SupplyForm({
           {error && <p className="mb-3 text-sm text-destructive" role="alert">{error}</p>}
           <Button onClick={handleSave} disabled={loading} className="h-12 w-full">
             <Check className="mr-1 h-4 w-4" />
-            {loading ? '저장 중...' : '추가하기'}
+            {loading ? '저장 중...' : supply ? '수정하기' : '추가하기'}
           </Button>
         </div>
       </div>

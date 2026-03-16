@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { X, Check } from 'lucide-react'
+import { Select } from '@/components/ui/select'
+import { Notice } from '@/components/ui/notice'
+import { X, Check, Search, MapPin } from 'lucide-react'
 import { DAY_LABELS, timeToMinutes } from '@/lib/utils/schedule-helpers'
 import type { Child, Profile, Schedule, ScheduleCategory } from '@/types/database'
 import { format, getDay, parseISO } from 'date-fns'
@@ -22,6 +24,14 @@ interface ScheduleFormProps {
 }
 
 type TravelMode = 'self' | 'parent' | 'helper' | 'academy_shuttle' | 'other'
+type NaverPlaceResult = {
+  title: string
+  category: string
+  address: string
+  roadAddress: string
+  telephone: string
+  link: string
+}
 
 type ScheduleMeta = {
   otherCategoryLabel?: string
@@ -45,6 +55,12 @@ const TRAVEL_OPTIONS: Array<{ value: TravelMode; label: string }> = [
   { value: 'academy_shuttle', label: '학원차' },
   { value: 'other', label: '기타' },
 ]
+const TIME_OPTIONS = Array.from({ length: 18 * 6 }, (_, index) => {
+  const totalMinutes = 6 * 60 + index * 10
+  const hour = Math.floor(totalMinutes / 60)
+  const minute = totalMinutes % 60
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+})
 
 function parseScheduleNotes(notes: string | null) {
   const raw = notes?.trim()
@@ -115,6 +131,10 @@ export function ScheduleForm({
       : ''
   )
   const [location, setLocation] = useState(schedule?.location ?? '')
+  const [locationQuery, setLocationQuery] = useState(schedule?.location ?? '')
+  const [locationResults, setLocationResults] = useState<NaverPlaceResult[]>([])
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState('')
   const [startTime, setStartTime] = useState(schedule?.start_time?.slice(0, 5) ?? '14:00')
   const [endTime, setEndTime] = useState(schedule?.end_time?.slice(0, 5) ?? '15:00')
   const [isRecurring, setIsRecurring] = useState(schedule?.is_recurring ?? true)
@@ -230,6 +250,34 @@ export function ScheduleForm({
     setSelectedDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     )
+  }
+
+  const searchLocation = async () => {
+    if (!locationQuery.trim()) {
+      setLocationError('검색어를 입력해주세요.')
+      return
+    }
+
+    try {
+      setLocationLoading(true)
+      setLocationError('')
+      const response = await fetch(`/api/naver/local-search?query=${encodeURIComponent(locationQuery.trim())}`)
+      const payload = await response.json() as { items?: NaverPlaceResult[]; error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? '장소 검색에 실패했습니다.')
+      }
+
+      setLocationResults(payload.items ?? [])
+      if ((payload.items ?? []).length === 0) {
+        setLocationError('검색 결과가 없습니다.')
+      }
+    } catch (err) {
+      setLocationResults([])
+      setLocationError(err instanceof Error ? err.message : '장소 검색에 실패했습니다.')
+    } finally {
+      setLocationLoading(false)
+    }
   }
 
   const handleSave = async () => {
@@ -441,11 +489,19 @@ export function ScheduleForm({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>시작 시간</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} step={600} />
+              <Select value={startTime} onChange={(e) => setStartTime(e.target.value)}>
+                {TIME_OPTIONS.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>종료 시간</Label>
-              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} step={600} />
+              <Select value={endTime} onChange={(e) => setEndTime(e.target.value)}>
+                {TIME_OPTIONS.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </Select>
             </div>
           </div>
           {hasTimeRangeError && (
@@ -562,7 +618,49 @@ export function ScheduleForm({
           {/* 장소 */}
           <div className="space-y-1.5">
             <Label>장소 (선택)</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="예: 강남 학원" />
+            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="선택한 장소가 여기에 반영됩니다." />
+            <div className="flex gap-2">
+              <Input
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+                placeholder="네이버 지도에서 장소 검색"
+              />
+              <Button type="button" variant="secondary" onClick={() => void searchLocation()} disabled={locationLoading}>
+                <Search className="h-4 w-4" />
+                {locationLoading ? '검색 중' : '검색'}
+              </Button>
+            </div>
+            {locationError ? (
+              <Notice variant="warning" title="장소 검색">
+                {locationError}
+              </Notice>
+            ) : null}
+            {locationResults.length > 0 ? (
+              <div className="space-y-2">
+                {locationResults.map(result => (
+                  <button
+                    key={`${result.title}-${result.address}`}
+                    type="button"
+                    onClick={() => {
+                      setLocation(result.title)
+                      setLocationQuery(result.title)
+                      setLocationResults([])
+                      setLocationError('')
+                    }}
+                    className="surface-card-muted w-full rounded-[18px] p-3 text-left"
+                  >
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{result.title}</p>
+                        <p className="text-xs text-muted-foreground">{result.roadAddress || result.address}</p>
+                        {result.telephone ? <p className="text-xs text-muted-foreground">{result.telephone}</p> : null}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {/* 메모 */}
