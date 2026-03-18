@@ -27,7 +27,7 @@ interface TodoModeViewProps {
   familyId: string
   schedules: Schedule[]
   overrides: ScheduleOverride[]
-  children: Child[]
+  childList: Child[]
   parents: Profile[]
   loading: boolean
 }
@@ -41,7 +41,7 @@ export function TodoModeView({
   familyId,
   schedules,
   overrides,
-  children,
+  childList,
   parents,
   loading,
 }: TodoModeViewProps) {
@@ -121,7 +121,7 @@ export function TodoModeView({
   // Resolve all schedules for the date range, grouped by parent
   const parentSections = useMemo((): ParentSection[] => {
     const allResolved = dateRange.flatMap(day =>
-      resolveSchedulesForDate(day, schedules, overrides, children, parents)
+      resolveSchedulesForDate(day, schedules, overrides, childList, parents)
     )
 
     const byParentId = new Map<string | null, ResolvedSchedule[]>()
@@ -142,7 +142,7 @@ export function TodoModeView({
     }
 
     return sections
-  }, [dateRange, schedules, overrides, children, parents])
+  }, [dateRange, schedules, overrides, childList, parents])
 
   // Filter supplies for the selected date range
   const suppliesInRange = useMemo(() => {
@@ -237,7 +237,7 @@ export function TodoModeView({
                   {/* Task list */}
                   <div className="space-y-0 divide-y divide-border/40">
                     {tasks.map(task => {
-                      const child = children.find(c => c.id === task.child_id)
+                      const child = childList.find(c => c.id === task.child_id)
                       const showDate = period !== 'day'
                       return (
                         <div
@@ -274,7 +274,7 @@ export function TodoModeView({
           {/* Supplies section per child */}
           {suppliesByChildId.size > 0 && (
             <div className="space-y-3">
-              {children.map(child => {
+              {childList.map(child => {
                 const childSupplies = suppliesByChildId.get(child.id)
                 if (!childSupplies || childSupplies.length === 0) return null
                 const unchecked = childSupplies.filter(s => !s.is_checked).length

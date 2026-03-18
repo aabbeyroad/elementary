@@ -205,7 +205,7 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
           familyId={familyId}
           schedules={schedules}
           overrides={overrides}
-          children={children}
+          childList={children}
           parents={parents}
           loading={loading}
         />
