@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import { DateNavigator } from '@/components/schedule/DateNavigator'
+import { ModeToggle } from '@/components/schedule/ModeToggle'
 
 const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
@@ -89,14 +90,17 @@ export function WeeklyViewPage({ familyId }: WeeklyViewPageProps) {
         }
         leading={<DateNavigator label={`${format(weekDays[0], 'M.d', { locale: ko })} ~ ${format(weekDays[6], 'M.d', { locale: ko })}`} onPrev={goToPrevWeek} onNext={goToNextWeek} />}
       >
-        <SegmentedControl
-          className="max-w-[360px]"
-          items={[
-            { label: '일간', href: '/dashboard' },
-            { label: '주간', active: true },
-            { label: '월간', href: '/schedule/monthly' },
-          ]}
-        />
+        <div className="space-y-4">
+          <ModeToggle mode="schedule" todoHref="/dashboard?mode=todo&period=week" />
+          <SegmentedControl
+            className="max-w-[360px]"
+            items={[
+              { label: '일간', href: '/dashboard' },
+              { label: '주간', active: true },
+              { label: '월간', href: '/schedule/monthly' },
+            ]}
+          />
+        </div>
       </PageHeader>
 
       <Card>

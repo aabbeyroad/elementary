@@ -3,19 +3,20 @@
 import { useState, useMemo, lazy, Suspense, useCallback, useEffect, startTransition } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { Plus, CalendarDays, ListTodo } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DailyView } from '@/components/schedule/DailyView'
 import { TodoModeView } from '@/components/schedule/TodoModeView'
+import { ModeToggle } from '@/components/schedule/ModeToggle'
 import { useSchedules } from '@/hooks/useSchedules'
 import { resolveSchedulesForDate } from '@/lib/utils/schedule-helpers'
 import type { ResolvedSchedule, Schedule } from '@/types/database'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import { DateNavigator } from '@/components/schedule/DateNavigator'
-import { cn } from '@/lib/utils'
 
 type ScheduleMode = 'schedule' | 'todo'
 
@@ -30,7 +31,11 @@ interface DashboardContentProps {
 }
 
 export function DashboardContent({ familyId }: DashboardContentProps) {
-  const [mode, setMode] = useState<ScheduleMode>('schedule')
+  const searchParams = useSearchParams()
+  const initialMode = searchParams.get('mode') === 'todo' ? 'todo' : 'schedule'
+  const initialPeriod = (searchParams.get('period') ?? 'day') as 'day' | 'week' | 'month'
+
+  const [mode, setMode] = useState<ScheduleMode>(initialMode)
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [showScheduleForm, setShowScheduleForm] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null)
@@ -120,34 +125,11 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
       >
         {/* Mode toggle */}
         <div className="flex items-center gap-2 mt-1">
-          <div className="inline-flex items-center rounded-full bg-secondary p-1 gap-0.5">
-            <button
-              type="button"
-              onClick={() => setMode('schedule')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
-                mode === 'schedule'
-                  ? 'bg-foreground text-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              일정 모드
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('todo')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
-                mode === 'todo'
-                  ? 'bg-foreground text-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <ListTodo className="h-3.5 w-3.5" />
-              할 일 모드
-            </button>
-          </div>
+          <ModeToggle
+            mode={mode}
+            onSchedule={() => setMode('schedule')}
+            onTodo={() => setMode('todo')}
+          />
         </div>
 
         {/* View switcher (only in schedule mode) */}
@@ -208,6 +190,7 @@ export function DashboardContent({ familyId }: DashboardContentProps) {
           childList={children}
           parents={parents}
           loading={loading}
+          initialPeriod={initialPeriod}
         />
       )}
 

@@ -30,6 +30,7 @@ interface TodoModeViewProps {
   childList: Child[]
   parents: Profile[]
   loading: boolean
+  initialPeriod?: TodoPeriod
 }
 
 interface ParentSection {
@@ -44,8 +45,9 @@ export function TodoModeView({
   childList,
   parents,
   loading,
+  initialPeriod = 'day',
 }: TodoModeViewProps) {
-  const [period, setPeriod] = useState<TodoPeriod>('day')
+  const [period, setPeriod] = useState<TodoPeriod>(initialPeriod)
   const [baseDate, setBaseDate] = useState(new Date())
   const [supplies, setSupplies] = useState<Supply[]>([])
   const [userId, setUserId] = useState<string | null>(null)
