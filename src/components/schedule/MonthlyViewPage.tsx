@@ -24,6 +24,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import { DateNavigator } from '@/components/schedule/DateNavigator'
+import { ModeToggle } from '@/components/schedule/ModeToggle'
 
 const loadScheduleForm = () =>
   import('@/components/schedule/ScheduleForm').then(m => ({ default: m.ScheduleForm }))
@@ -107,14 +108,17 @@ export function MonthlyViewPage({ familyId }: MonthlyViewPageProps) {
         }
         leading={<DateNavigator label={format(currentMonth, 'yyyy년 M월', { locale: ko })} onPrev={goToPrevMonth} onNext={goToNextMonth} />}
       >
-        <SegmentedControl
-          className="max-w-[360px]"
-          items={[
-            { label: '일간', href: '/dashboard' },
-            { label: '주간', href: '/schedule' },
-            { label: '월간', active: true },
-          ]}
-        />
+        <div className="space-y-4">
+          <ModeToggle mode="schedule" todoHref="/dashboard?mode=todo&period=month" />
+          <SegmentedControl
+            className="max-w-[360px]"
+            items={[
+              { label: '일간', href: '/dashboard' },
+              { label: '주간', href: '/schedule' },
+              { label: '월간', active: true },
+            ]}
+          />
+        </div>
       </PageHeader>
 
       <Card>
